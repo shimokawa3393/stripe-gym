@@ -12,6 +12,7 @@ def init_db():
     cursor = conn.cursor() # カーソルオブジェクトを作成
 
     # アプリ起動時にSQLite接続しテーブルを作成
+    # 単発購入テーブル
     cursor.execute(
         "CREATE TABLE IF NOT EXISTS ledger ("
         "session_id TEXT PRIMARY KEY, "
@@ -20,7 +21,7 @@ def init_db():
         "status TEXT, "
         "created_at TEXT)"
     )
-    # ADD: 初期化時に一度だけ走らせる。既存のDB接続を流用。
+    # 定期課金テーブル
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS subscriptions(
         id TEXT PRIMARY KEY,          -- sub_***
@@ -29,10 +30,10 @@ def init_db():
         status TEXT,                  -- active/trialing/canceled 等
         current_period_end INTEGER,
         trial_end INTEGER,
-        app_user_id TEXT,
         latest_invoice TEXT,
         created_at TEXT
         )""")
+    # 請求書テーブル
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS invoices(
         id TEXT PRIMARY KEY,          -- in_***
@@ -60,13 +61,20 @@ def record_ledger(session):
     amount_total = session.get("amount_total")
     currency = session.get("currency")
     payment_status = session.get("payment_status")
-    created = now()
+    
+    # Stripeのcreated（epoch）をISOに。無ければUTC now。
+    created_epoch = session.get("created")
+    created_at = (
+        datetime.datetime.fromtimestamp(created_epoch, tz=datetime.timezone.utc).isoformat()
+        if created_epoch else datetime.datetime.now(datetime.timezone.utc).isoformat()
+    )
+
     
     try:
         cursor.execute(
             "INSERT INTO ledger (session_id, amount, currency, status, created_at) "
             "VALUES (?, ?, ?, ?, ?)",
-            (session_id, amount_total, currency, payment_status, created)
+            (session_id, amount_total, currency, payment_status, created_at)
         )
         conn.commit()
         print(f" Ledger updated: Session {session_id} recorded.")
@@ -79,43 +87,57 @@ def record_ledger(session):
 def upsert_subscription(subscription):
     conn = sqlite3.connect(DB_PATH, check_same_thread=False) # データベース接続
     cursor = conn.cursor() # カーソルオブジェクトを作成
+        
+    items = (subscription.get("items") or {}).get("data", [])
+    first_item = items[0] if items else {}
     
     customer_id = subscription.get("customer")
-    items = subscription.get("items", {}).get("data", [])
-    price_id = items[0]["price"]["id"] if items else None
+    price_id = ((first_item.get("price") or {}).get("id"))
     status = subscription.get("status")
-    current_period_end = subscription.get("current_period_end") 
+    
+    # Noneを回避するフォールバック（優先: top-level -> item -> trial_end -> billing_cycle_anchor）
+    current_period_end = (
+        subscription.get("current_period_end")
+        or first_item.get("current_period_end")
+        or subscription.get("trial_end")
+        or subscription.get("billing_cycle_anchor")
+    )
+
     trial_end = subscription.get("trial_end")
-    app_user_id = subscription.get("metadata").get("app_user_id")
     latest_invoice = subscription.get("latest_invoice")
-    created = now()
+    
+    # Stripeのcreated（epoch）をISOに。無ければUTC now。
+    created_epoch = subscription.get("created")
+    created_at = (
+        datetime.datetime.fromtimestamp(created_epoch, tz=datetime.timezone.utc).isoformat()
+        if created_epoch else datetime.datetime.now(datetime.timezone.utc).isoformat()
+    )
     
     try:
         cursor.execute("""
-            INSERT INTO subscriptions(id, customer_id, price_id, status, current_period_end, trial_end, app_user_id, latest_invoice, created_at)
-            VALUES(?,?,?,?,?,?,?,?,?)
+            INSERT INTO subscriptions(id, customer_id, price_id, status, current_period_end, trial_end, latest_invoice, created_at)
+            VALUES(?,?,?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET
             price_id=excluded.price_id,
             status=excluded.status,
             current_period_end=excluded.current_period_end,
             trial_end=excluded.trial_end,
-            app_user_id=COALESCE(NULLIF(excluded.app_user_id,''), app_user_id),
             latest_invoice=excluded.latest_invoice
         """, (
             subscription["id"],
             customer_id,
             price_id,
             status,
-            current_period_end,
-            trial_end,
-            app_user_id,
+            int(current_period_end) if current_period_end is not None else None,
+            int(trial_end) if trial_end is not None else None,
             latest_invoice,
-            created
+            created_at
             ))
         conn.commit()
     except sqlite3.IntegrityError as e:
         print(f"⚠ Subscription {subscription['id']} is already recorded in subscriptions.")
     conn.close()
+
 
 # 請求書を更新
 def record_invoice(invoice):
@@ -163,7 +185,17 @@ def get_subscriptions():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False) # データベース接続
     cursor = conn.cursor() # カーソルオブジェクトを作成
 
-    cursor.execute("SELECT id, customer_id, price_id, status, current_period_end, trial_end, app_user_id, latest_invoice, created_at FROM subscriptions")
+    """
+    current_period_end は**無かったら、
+    item.current_period_end → trial_end → billing_cycle_anchor**で埋める
+    """
+    cursor.execute("""
+            SELECT id, customer_id, price_id, status,
+                -- current_period_endがNULLならtrial_endを返す
+                COALESCE(current_period_end, trial_end) as current_period_end,
+                trial_end, latest_invoice, created_at
+            FROM subscriptions
+        """)
     rows = cursor.fetchall()
     conn.close()
     return rows

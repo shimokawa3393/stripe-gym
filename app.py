@@ -2,7 +2,7 @@ import os
 import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
-from utils import init_db, record_ledger, upsert_subscription, record_invoice, get_ledger, get_subscriptions
+from models import init_db, get_ledger, get_subscriptions
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
@@ -75,7 +75,7 @@ def subscription():
             mode="subscription",
             payment_method_types=["card"],                       # 支払い方法をクレジットカードに限定
             line_items=[{"price": PRICE_ID, "quantity": 1}],
-            subscription_data={"trial_period_days": 7},          # トライアル期間を7日に設定
+            # subscription_data={"trial_period_days": 7},          # トライアル期間を7日に設定
             allow_promotion_codes=True,                          # プロモーションコードの使用を許可
         )
     except Exception as e:
@@ -170,9 +170,9 @@ def show_ledger():
 @app.route("/subscriptions", methods=["GET"])
 def show_subscriptions():
     rows = get_subscriptions()
-    result = "SubscriptionID | CustomerID | PriceID | Status | CurrentPeriodEnd | TrialEnd | AppUserID | LatestInvoice | Created\n"
+    result = "SubscriptionID | CustomerID | PriceID | Status | CurrentPeriodEnd | TrialEnd | LatestInvoice | Created\n"
     for r in rows:
-        result += f"{r[0]}, {r[1]}, {r[2]}, {r[3]}, {r[4]}, {r[5]}, {r[6]}, {r[7]}, {r[8]}\n"
+        result += f"{r[0]}, {r[1]}, {r[2]}, {r[3]}, {r[4]}, {r[5]}, {r[6]}, {r[7]}\n"
     return "<pre>" + result + "</pre>"
 
 

@@ -1,4 +1,4 @@
-from utils import record_ledger, record_invoice, upsert_subscription
+from models import record_ledger, record_invoice, upsert_subscription
 
 # Webhookイベントハンドラー関数
 def handle_checkout_completed(session):
