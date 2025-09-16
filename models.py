@@ -69,7 +69,6 @@ def record_ledger(session):
         if created_epoch else datetime.datetime.now(datetime.timezone.utc).isoformat()
     )
 
-    
     try:
         cursor.execute(
             "INSERT INTO ledger (session_id, amount, currency, status, created_at) "
@@ -143,12 +142,6 @@ def upsert_subscription(subscription):
 def record_invoice(invoice):
     conn = sqlite3.connect(DB_PATH, check_same_thread=False) # データベース接続
     cursor = conn.cursor() # カーソルオブジェクトを作成
-
-    subscription_id = invoice.get("subscription")
-    status = invoice.get("status")
-    amount_due = invoice.get("amount_due")
-    currency = invoice.get("currency")
-    created = now()
     
     try:
         cursor.execute("""

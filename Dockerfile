@@ -1,22 +1,16 @@
-# ベースイメージとして公式Pythonイメージを使用
-FROM python:3.11.7-slim
+FROM python:3.11-slim
 
-# 作業ディレクトリを設定
 WORKDIR /app
 
-# アプリの依存関係をコピー＆インストール（必要に応じてrequirements.txtを使用）
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+# Pythonの依存関係をインストール（psycopg2-binaryを使用してビルド依存関係を回避）
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# アプリケーションのソースコードをコピー
+# アプリケーションコードをコピー
 COPY . .
 
-# Flaskのエントリを明示
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=development
+# ポート5000を公開
+EXPOSE 5000
 
-# 環境変数（Stripeの公開鍵・秘密鍵など）を渡すことを想定
-# 本番では `docker run -e` オプションやdocker-composeで注入
-
-# Flaskアプリを起動（本番ではGunicorn等を使用することも推奨）
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+# アプリケーションを起動
+CMD ["python", "app.py"]

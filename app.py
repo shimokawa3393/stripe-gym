@@ -2,7 +2,7 @@ import os
 import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
-from models import init_db, get_ledger, get_subscriptions
+from models_postgres import init_db, get_ledger, get_subscriptions
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
@@ -132,19 +132,19 @@ def stripe_webhook():
         return jsonify({'error': 'webhook error'}), 400
 
     event_type = event.get("type")
-    data = event["data"]["object"]
+    webhook_object = event["data"]["object"]
 
     # イベントタイプによって処理を分岐
     if event_type == "checkout.session.completed":
-        handle_checkout_completed(data)
+        handle_checkout_completed(webhook_object)
     elif event_type == "invoice.paid":
-        handle_invoice_paid(data)
+        handle_invoice_paid(webhook_object)
     elif event_type == "invoice.payment_failed":
-        handle_invoice_payment_failed(data)
+        handle_invoice_payment_failed(webhook_object)
     elif event_type == "customer.subscription.created":
-        handle_subscription_created(data)
+        handle_subscription_created(webhook_object)
     elif event_type == "customer.subscription.updated":
-        handle_subscription_updated(data)
+        handle_subscription_updated(webhook_object)
     else:
         print(f"⚠ Unhandled event type: {event_type}")
         return "", 200
@@ -161,7 +161,7 @@ def show_ledger():
     result = "SessionID | Amount | Currency | Status | Created\n"
     
     for r in rows:
-        result += f"{r[0]}, {r[1]}, {r[2]}, {r[3]}, {r[4]}\n"
+        result += f"{r.session_id}, {r.amount}, {r.currency}, {r.status}, {r.created_at}\n"
         
     return "<pre>" + result + "</pre>"
 
@@ -172,7 +172,7 @@ def show_subscriptions():
     rows = get_subscriptions()
     result = "SubscriptionID | CustomerID | PriceID | Status | CurrentPeriodEnd | TrialEnd | LatestInvoice | Created\n"
     for r in rows:
-        result += f"{r[0]}, {r[1]}, {r[2]}, {r[3]}, {r[4]}, {r[5]}, {r[6]}, {r[7]}\n"
+        result += f"{r.id}, {r.customer_id}, {r.price_id}, {r.status}, {r.current_period_end}, {r.trial_end}, {r.latest_invoice}, {r.created_at}\n"
     return "<pre>" + result + "</pre>"
 
 

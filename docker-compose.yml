@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: stripegym
+      POSTGRES_PASSWORD: stripegym
+      POSTGRES_DB: stripegym
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # ローカルアクセス用にポートを公開（競合回避のため5433に変更）
+
+  app:
+    build: .
+    ports:
+      - "5001:5000"
+    environment:
+      - DATABASE_URL=postgresql://stripegym:stripegym@db:5432/stripegym
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    working_dir: /app
+
+volumes:
+  pgdata:
