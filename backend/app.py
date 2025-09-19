@@ -2,6 +2,7 @@ import os
 import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
+from flask_cors import CORS
 from models_postgres import init_db, get_ledger, get_subscriptions
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
@@ -11,6 +12,13 @@ app = Flask(__name__)
 
 # デバッグモードを有効化
 app.config["DEBUG"] = True
+
+# CORS設定を追加
+CORS(app, 
+     origins=["http://localhost:3000", "http://localhost:8080", "http://localhost", "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+     supports_credentials=True)
 
 
 # 環境変数からStripeの公開鍵・秘密鍵を取得
@@ -65,7 +73,7 @@ def checkout():
 
 
 # 定期課金ページ
-@app.route("/subscription", methods=["GET"])
+@app.route("/subscription", methods=["POST"])
 def subscription():
     try:
         # Checkout で “定期課金” を開始する
@@ -83,6 +91,23 @@ def subscription():
     
     # Stripeの決済ページURLへリダイレクト
     return redirect(subscription_session.url, code=303)
+
+
+# API エンドポイント（フロントエンド用）
+@app.route("/api/subscription", methods=["POST"])
+def subscription_api():
+    try:
+        subscription_session = stripe.checkout.Session.create(
+            success_url="http://localhost:8080/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="http://localhost:8080/cancel",
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": PRICE_ID, "quantity": 1}],
+            allow_promotion_codes=True,
+        )
+        return jsonify({"id": subscription_session.id})   # ← JSONで返す
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # 支払い成功後のページ
@@ -175,6 +200,32 @@ def show_subscriptions():
         result += f"{r.id}, {r.customer_id}, {r.price_id}, {r.status}, {r.current_period_end}, {r.trial_end}, {r.latest_invoice}, {r.created_at}\n"
     return "<pre>" + result + "</pre>"
 
+
+# ヘルスチェックエンドポイント
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "healthy", "message": "Stripe Gym API is running"}), 200
+
+# API エンドポイント（フロントエンド用）
+@app.route("/api/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    try:
+        data = request.get_json()
+        price_id = data.get("price_id", PRICE_ID)
+        
+        checkout_session = stripe.checkout.Session.create(
+            success_url=f"{BASE_URL}/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{BASE_URL}/cancel",
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            allow_promotion_codes=True,
+        )
+        
+        return jsonify({"id": checkout_session.id}), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # アプリ起動
 if __name__ == "__main__":

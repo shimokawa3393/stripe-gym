@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>決済完了 - Stripe Gym</title>
+    <link rel="stylesheet" href="../styles.css?v=20241220">
+</head>
+<body>
+    <div class="container">
+        <div class="success-message">
+            <div class="success-icon">✅</div>
+            <h1>決済が完了しました！</h1>
+            <p class="success-text">Stripe Gymのプレミアムプランにご登録いただき、ありがとうございます。</p>
+            <p class="success-details">お支払いが正常に処理されました。これから素晴らしいフィットネスライフをお楽しみください！</p>
+            
+            <div class="success-actions">
+                <button onclick="window.location.href='/'">ホームに戻る</button>
+                <button onclick="window.location.href='/'">マイページを見る</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // URLパラメータからセッションIDを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        
+        if (sessionId) {
+            console.log('決済セッションID:', sessionId);
+            // 必要に応じて、セッションIDを使って追加の処理を行う
+        }
+    </script>
+</body>
+</html>
