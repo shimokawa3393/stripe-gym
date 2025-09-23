@@ -13,7 +13,7 @@ document.getElementById('subscription-button').addEventListener('click', async (
     error.style.display = 'none';
     
     try {
-        const response = await fetch(window.AppConfig.api.checkoutEndpoint, {
+        const response = await fetch(window.AppConfig.api.baseUrl + window.AppConfig.api.subscriptionEndpoint, {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json" 
@@ -47,6 +47,55 @@ document.getElementById('subscription-button').addEventListener('click', async (
         // UI状態をリセット
         button.disabled = false;
         button.textContent = '今すぐ始める';
+        loading.style.display = 'none';
+    }
+});
+
+// プロテイン購入用のcheckout関数
+document.getElementById('checkout-button').addEventListener('click', async () => {
+    const button = document.getElementById('checkout-button');
+    const loading = document.getElementById('loading-product');
+    const error = document.getElementById('error-product');
+    
+    // UI状態を更新
+    button.disabled = true;
+    button.textContent = '処理中...';
+    loading.style.display = 'block';
+    error.style.display = 'none';
+    
+    try {
+        const response = await fetch(window.AppConfig.api.baseUrl + window.AppConfig.api.checkoutEndpoint, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({})
+        });
+        console.log(response);
+        const data = await response.json();
+        console.log(data);
+        
+        if (data.id) {
+            // Stripeのチェックアウトページにリダイレクト
+            const result = await stripe.redirectToCheckout({ 
+                sessionId: data.id 
+            });
+            
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+        } else {
+            throw new Error(data.error || 'セッションの作成に失敗しました');
+        }
+        
+    } catch (err) {
+        console.error('エラー:', err);
+        error.textContent = err.message || '決済処理中にエラーが発生しました';
+        error.style.display = 'block';
+        
+        // UI状態をリセット
+        button.disabled = false;
+        button.textContent = '今すぐ購入';
         loading.style.display = 'none';
     }
 });

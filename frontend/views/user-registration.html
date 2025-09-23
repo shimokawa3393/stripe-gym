@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会員登録 - Stripe Gym</title>
+    <link rel="stylesheet" href="../styles/styles.css?v=20241220">
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💪 Stripe Gym</div>
+        <p class="subtitle">会員登録</p>
+        
+        <div class="registration-form">
+            <form id="registration-form">
+                <div class="form-group">
+                    <label for="email">メールアドレス</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm-password">パスワード確認</label>
+                    <input type="password" id="confirm-password" name="confirm-password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">お名前</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">電話番号</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+                
+                <div class="form-group">
+                    <label for="birthdate">生年月日</label>
+                    <input type="date" id="birthdate" name="birthdate">
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="terms" name="terms" required>
+                        <span class="checkmark"></span>
+                        利用規約に同意する
+                    </label>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="privacy" name="privacy" required>
+                        <span class="checkmark"></span>
+                        プライバシーポリシーに同意する
+                    </label>
+                </div>
+                
+                <button type="submit" class="registration-button">
+                    会員登録
+                </button>
+                
+                <div class="loading" id="loading">
+                    処理中...
+                </div>
+                
+                <div class="error" id="error"></div>
+            </form>
+            
+            <div class="login-link">
+                <p>すでにアカウントをお持ちですか？ <a href="/">ログイン</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registration-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const button = document.querySelector('.registration-button');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            
+            // UI状態を更新
+            button.disabled = true;
+            button.textContent = '処理中...';
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            
+            // パスワード確認
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            if (password !== confirmPassword) {
+                error.textContent = 'パスワードが一致しません';
+                error.style.display = 'block';
+                button.disabled = false;
+                button.textContent = '会員登録';
+                loading.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                
+                // ここで実際のAPI呼び出しを行う
+                console.log('登録データ:', data);
+                
+                // 仮の成功処理
+                setTimeout(() => {
+                    alert('会員登録が完了しました！');
+                    window.location.href = '/';
+                }, 1000);
+                
+            } catch (err) {
+                console.error('エラー:', err);
+                error.textContent = '登録処理中にエラーが発生しました';
+                error.style.display = 'block';
+                
+                // UI状態をリセット
+                button.disabled = false;
+                button.textContent = '会員登録';
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

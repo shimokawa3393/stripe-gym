@@ -31,26 +31,16 @@ BASE_URL = os.getenv("BASE_URL")
 
 init_db()
 
-# ホームページ
-@app.route("/")
-def index():
-    # シンプルなホーム。実際はテンプレートを使ってボタンを配置可能
-    return """
-        <h1>デモショップ</h1>
-        <p><a href="/checkout">テスト商品を購入</a></p>
-        <p><a href="/subscription">テストサブスクを開始</a></p>
-        <p><a href="/ledger">購入履歴を表示</a></p>
-        <p><a href="/subscriptions">サブスクリプションを表示</a></p>
-    """
 
-# 支払いページ
-@app.route("/checkout")
-def checkout():
+# オリジナルプロテイン購入ページ
+# API エンドポイント（フロントエンド用）
+@app.route("/api/checkout", methods=["POST"])
+def checkout_api():
     # ドメインURLを組み立て（Dockerの場合ホスト名に注意。ローカルテスト用にlocalhost使用）
     try:
         # StripeのCheckout Sessionを作成
         checkout_session = stripe.checkout.Session.create(
-            success_url = f"{BASE_URL}/success?session_id={{CHECKOUT_SESSION_ID}}",    # 支払い成功後に戻るURL
+            success_url = f"{BASE_URL}/success-checkout?session_id={{CHECKOUT_SESSION_ID}}",    # 支払い成功後に戻るURL
             cancel_url  = f"{BASE_URL}/cancel",     # 支払いキャンセル時に戻るURL
             payment_method_types = ["card"],       # 使用する支払方法
             mode = "payment",                      # 単発の支払いモード
@@ -58,48 +48,26 @@ def checkout():
                 {
                     'price_data': {
                         'currency': 'jpy',
-                        'product_data': {'name': 'テスト商品'},
-                        'unit_amount': 50,  # 単価50円（通貨の最小単位：50円）
+                        'product_data': {'name': 'オリジナルプロテイン'},
+                        'unit_amount': 4980,  # 単価50円（通貨の最小単位：50円）
                     },
                     'quantity': 1,
                 }
             ]
         )
+        return jsonify({"id": checkout_session.id})   # ← JSONで返す
     except Exception as e:
-        return f"Error creating checkout session: {e}", 500
-
-    # Stripeの決済ページURLへリダイレクト
-    return redirect(checkout_session.url, code=303)
+        return jsonify({"error": str(e)}), 500
 
 
-# 定期課金ページ
-@app.route("/subscription", methods=["POST"])
-def subscription():
-    try:
-        # Checkout で “定期課金” を開始する
-        subscription_session = stripe.checkout.Session.create(
-            success_url=f"{BASE_URL}/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{BASE_URL}/cancel",
-            mode="subscription",
-            payment_method_types=["card"],                       # 支払い方法をクレジットカードに限定
-            line_items=[{"price": PRICE_ID, "quantity": 1}],
-            # subscription_data={"trial_period_days": 7},          # トライアル期間を7日に設定
-            allow_promotion_codes=True,                          # プロモーションコードの使用を許可
-        )
-    except Exception as e:
-        return f"Error creating subscription session: {e}", 500
-    
-    # Stripeの決済ページURLへリダイレクト
-    return redirect(subscription_session.url, code=303)
-
-
+# サブスクリプション課金ページ
 # API エンドポイント（フロントエンド用）
 @app.route("/api/subscription", methods=["POST"])
 def subscription_api():
     try:
         subscription_session = stripe.checkout.Session.create(
-            success_url="http://localhost:8080/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="http://localhost:8080/cancel",
+            success_url=f"{BASE_URL}/success-subscription?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{BASE_URL}/cancel",
             mode="subscription",
             payment_method_types=["card"],
             line_items=[{"price": PRICE_ID, "quantity": 1}],
@@ -108,32 +76,6 @@ def subscription_api():
         return jsonify({"id": subscription_session.id})   # ← JSONで返す
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-# 支払い成功後のページ
-@app.route("/success")
-def success():
-    session_id = request.args.get("session_id")
-    if not session_id:
-        return "session_id missing", 400
-    
-    session = stripe.checkout.Session.retrieve(session_id, expand=["payment_intent"])
-    
-    return f"""
-        <h1>支払いが完了しました！ありがとうございます。</h1>
-        <p>支払い金額: {session.amount_total} {session.currency}</p>
-        <p>支払いステータス: {session.payment_status}</p>
-        <button><a href="/">ホームに戻る</a></button>
-    """
-
-
-# 支払いキャンセル後のページ
-@app.route("/cancel")
-def cancel():
-    return """
-        <h1>支払いがキャンセルされました。</h1>
-        <button><a href="/">ホームに戻る</a></button>
-    """
 
 
 # ウェブフックエンドポイント
@@ -206,26 +148,6 @@ def show_subscriptions():
 def health_check():
     return jsonify({"status": "healthy", "message": "Stripe Gym API is running"}), 200
 
-# API エンドポイント（フロントエンド用）
-@app.route("/api/create-checkout-session", methods=["POST"])
-def create_checkout_session():
-    try:
-        data = request.get_json()
-        price_id = data.get("price_id", PRICE_ID)
-        
-        checkout_session = stripe.checkout.Session.create(
-            success_url=f"{BASE_URL}/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{BASE_URL}/cancel",
-            mode="subscription",
-            payment_method_types=["card"],
-            line_items=[{"price": price_id, "quantity": 1}],
-            allow_promotion_codes=True,
-        )
-        
-        return jsonify({"id": checkout_session.id}), 200
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 # アプリ起動
 if __name__ == "__main__":
