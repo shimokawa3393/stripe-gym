@@ -373,6 +373,140 @@ body {
     text-decoration: underline;
 }
 
+/* ログインフォームのスタイル */
+.login-form {
+    background: #f8f9ff;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    border: 2px solid #e8ecff;
+    text-align: left;
+}
+
+.login-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+    margin: 20px auto;
+    display: block;
+}
+
+.login-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.login-button:active {
+    transform: translateY(0);
+}
+
+.login-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.login-links {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e8ecff;
+}
+
+.login-links p {
+    margin-bottom: 10px;
+}
+
+.login-links a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-links a:hover {
+    text-decoration: underline;
+}
+
+/* ナビゲーションボタンのスタイル */
+.nav-buttons {
+    margin-bottom: 30px;
+    text-align: right;
+}
+
+.nav-section {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.nav-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    width: 150px;
+    text-align: center;
+}
+
+.register-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.login-button {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.mypage-button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.logout-button {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.nav-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0.95;
+}
+
+.nav-button:active {
+    transform: translateY(0);
+}
+
+.nav-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #666;
+    margin-right: 10px;
+    font-size: 1rem;
+}
+
 @media (max-width: 600px) {
     .container {
         padding: 20px;
@@ -390,8 +524,24 @@ body {
         margin: 0 0 20px 0;
     }
     
-    .registration-form {
+    .registration-form,
+    .login-form {
         padding: 20px;
+    }
+    
+    .nav-buttons {
+        text-align: center;
+    }
+    
+    .nav-section {
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .user-info {
+        margin-right: 0;
+        margin-bottom: 10px;
     }
     
     .success-actions, .cancel-actions {

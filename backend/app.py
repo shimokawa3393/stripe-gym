@@ -3,7 +3,7 @@ import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
 from flask_cors import CORS
-from models_postgres import init_db, get_ledger, get_subscriptions
+from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
@@ -76,6 +76,154 @@ def subscription_api():
         return jsonify({"id": subscription_session.id})   # ← JSONで返す
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ユーザー登録API
+@app.route("/api/register", methods=["POST"])
+def register_api():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
+        name = data.get("name")
+        phone = data.get("phone")
+        birthdate = data.get("birthdate")
+        terms_accepted = data.get("terms", False)
+        privacy_accepted = data.get("privacy", False)
+        
+        # 必須項目のチェック
+        if not email or not password or not name:
+            return jsonify({"error": "メールアドレス、パスワード、お名前は必須です"}), 400
+        
+        # 利用規約とプライバシーポリシーの同意チェック
+        if not terms_accepted or not privacy_accepted:
+            return jsonify({"error": "利用規約とプライバシーポリシーに同意してください"}), 400
+        
+        # パスワードの長さチェック
+        if len(password) < 8:
+            return jsonify({"error": "パスワードは8文字以上で入力してください"}), 400
+        
+        # パスワードをハッシュ化
+        password_hash = hash_password(password)
+        
+        # ユーザーを作成
+        user = create_user(
+            email=email,
+            password_hash=password_hash,
+            name=name,
+            phone=phone,
+            birthdate=birthdate,
+            terms_accepted=terms_accepted,
+            privacy_accepted=privacy_accepted
+        )
+        
+        # セッションを作成
+        session_token = create_session(user.id)
+        
+        return jsonify({
+            "success": True,
+            "message": "会員登録が完了しました",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name
+            },
+            "session_token": session_token
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"登録処理中にエラーが発生しました: {str(e)}"}), 500
+
+
+# ログインAPI
+@app.route("/api/login", methods=["POST"])
+def login_api():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
+        
+        if not email or not password:
+            return jsonify({"error": "メールアドレスとパスワードが必要です"}), 400
+        
+        # ユーザーを認証
+        user = authenticate_user(email, password)
+        if not user:
+            return jsonify({"error": "メールアドレスまたはパスワードが正しくありません"}), 401
+        
+        # セッションを作成
+        session_token = create_session(user.id)
+        
+        return jsonify({
+            "success": True,
+            "message": "ログインが完了しました",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name
+            },
+            "session_token": session_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"ログイン処理中にエラーが発生しました: {str(e)}"}), 500
+
+
+# ログアウトAPI
+@app.route("/api/logout", methods=["POST"])
+def logout_api():
+    try:
+        data = request.get_json()
+        session_token = data.get("session_token")
+        
+        if not session_token:
+            return jsonify({"error": "セッショントークンが必要です"}), 400
+        
+        # セッションを検証
+        user_id = validate_session(session_token)
+        if not user_id:
+            return jsonify({"error": "無効なセッションです"}), 401
+        
+        # ログアウト処理
+        success = logout_user(session_token)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "ログアウトが完了しました"
+            }), 200
+        else:
+            return jsonify({"error": "ログアウトに失敗しました"}), 500
+        
+    except Exception as e:
+        return jsonify({"error": f"ログアウト処理中にエラーが発生しました: {str(e)}"}), 500
+
+
+# セッション検証API
+@app.route("/api/verify-session", methods=["POST"])
+def verify_session_api():
+    try:
+        data = request.get_json()
+        session_token = data.get("session_token")
+        
+        if not session_token:
+            return jsonify({"error": "セッショントークンが必要です"}), 400
+        
+        # セッションを検証
+        user_id = validate_session(session_token)
+        if not user_id:
+            return jsonify({"error": "無効なセッションです"}), 401
+        
+        return jsonify({
+            "success": True,
+            "message": "セッションが有効です",
+            "user_id": user_id
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": f"セッション検証中にエラーが発生しました: {str(e)}"}), 500
 
 
 # ウェブフックエンドポイント

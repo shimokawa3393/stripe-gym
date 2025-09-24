@@ -71,7 +71,7 @@
             </form>
             
             <div class="login-link">
-                <p>すでにアカウントをお持ちですか？ <a href="/">ログイン</a></p>
+                <p>すでにアカウントをお持ちですか？ <a onclick="window.location.href='views/login.html'">ログイン</a></p>
             </div>
         </div>
     </div>
@@ -113,7 +113,7 @@
                 // 仮の成功処理
                 setTimeout(() => {
                     alert('会員登録が完了しました！');
-                    window.location.href = '/';
+                    window.location.href = 'views/login.html';
                 }, 1000);
                 
             } catch (err) {

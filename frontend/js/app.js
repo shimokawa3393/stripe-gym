@@ -1,6 +1,9 @@
+// 決済関連
+
 // 設定からStripeの公開可能キーを取得
 const stripe = Stripe(window.AppConfig.stripe.publishableKey);
 
+// サブスクリプション購入用のcheckout関数
 document.getElementById('subscription-button').addEventListener('click', async () => {
     const button = document.getElementById('subscription-button');
     const loading = document.getElementById('loading');
@@ -99,3 +102,99 @@ document.getElementById('checkout-button').addEventListener('click', async () =>
         loading.style.display = 'none';
     }
 });
+
+
+
+// ユーザー関連
+
+// ページ読み込み時にログイン状態を確認
+document.addEventListener('DOMContentLoaded', function() {
+    checkLoginStatus();
+});
+
+// ログイン状態を確認
+function checkLoginStatus() {
+    const sessionToken = localStorage.getItem('session_token');
+    const userName = localStorage.getItem('user_name');
+    
+    if (sessionToken && userName) {
+        // セッションの有効性を確認
+        fetch(window.AppConfig.api.baseUrl + '/api/verify-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_token: sessionToken })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // ログイン状態を表示
+                showLoggedInState(userName);
+            } else {
+                // セッションが無効な場合
+                showGuestState();
+            }
+        })
+        .catch(error => {
+            console.error('セッション確認エラー:', error);
+            showGuestState();
+        });
+    } else {
+        // 未ログイン状態を表示
+        showGuestState();
+    }
+}
+
+// ログイン状態を表示
+function showLoggedInState(userName) {
+    const guestNav = document.getElementById('guest-nav');
+    const userNav = document.getElementById('user-nav');
+    const userNameElement = document.getElementById('user-name');
+    
+    if (guestNav && userNav && userNameElement) {
+        guestNav.style.display = 'none';
+        userNav.style.display = 'block';
+        userNameElement.textContent = `こんにちは、${userName}さん`;
+    }
+}
+
+// 未ログイン状態を表示
+function showGuestState() {
+    const guestNav = document.getElementById('guest-nav');
+    const userNav = document.getElementById('user-nav');
+    
+    if (guestNav && userNav) {
+        guestNav.style.display = 'block';
+        userNav.style.display = 'none';
+    }
+    
+    localStorage.removeItem('session_token');
+    localStorage.removeItem('user_name');
+}
+
+// ログアウト機能
+function logout() {
+    const sessionToken = localStorage.getItem('session_token');
+    
+    if (sessionToken) {
+        fetch(window.AppConfig.api.baseUrl + '/api/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_token: sessionToken })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('ログアウトしました');
+                showGuestState();
+            } else {
+                alert('ログアウトに失敗しました');
+            }
+        })
+        .catch(error => {
+            console.error('ログアウトエラー:', error);
+            alert('ログアウト中にエラーが発生しました');
+        });
+    } else {
+        showGuestState();
+    }
+}

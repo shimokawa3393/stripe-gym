@@ -1,6 +1,8 @@
 import os
 import datetime
 import logging
+import hashlib
+import secrets
 from sqlalchemy import (
     Column,
     Integer,
@@ -91,6 +93,27 @@ def get_session():
 def now():
     return datetime.datetime.now().isoformat()
 
+
+# パスワードハッシュ化関数
+def hash_password(password):
+    """パスワードをハッシュ化"""
+    salt = secrets.token_hex(16)
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+    return f"{salt}:{password_hash.hex()}"
+
+def verify_password(password, password_hash):
+    """パスワードを検証"""
+    try:
+        salt, hash_hex = password_hash.split(':')
+        password_hash_check = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+        return password_hash_check.hex() == hash_hex
+    except:
+        return False
+
+
+'''
+支払い関連
+'''
 
 # 支払い台帳を記録
 def record_ledger(webhook_object, user_id=None, product_name=None):
@@ -263,6 +286,11 @@ def get_subscriptions():
         session.close()
 
 
+
+'''
+ユーザー関連    
+'''
+
 # ユーザーを登録
 def create_user(email, password_hash, name, phone=None, birthdate=None, terms_accepted=False, privacy_accepted=False):
     session = get_session()
@@ -373,3 +401,68 @@ def get_user_all_history(user_id):
         raise e
     finally:
         session.close()
+
+
+# ログイン検証
+def authenticate_user(email, password):
+    """ユーザーのログインを検証"""
+    session = get_session()
+    try:
+        user = session.query(User).filter_by(email=email).first()
+        if not user:
+            return None
+        
+        if not verify_password(password, user.password_hash):
+            return None
+        
+        return user
+    except Exception as e:
+        logger.error(f"Error authenticating user: {e}")
+        raise e
+    finally:
+        session.close()
+
+
+# セッション管理用の辞書（実際のアプリケーションではRedis等を使用）
+active_sessions = {}
+
+def create_session(user_id):
+    """ユーザーセッションを作成"""
+    session_token = secrets.token_urlsafe(32)
+    active_sessions[session_token] = {
+        'user_id': user_id,
+        'created_at': datetime.datetime.now(),
+        'last_activity': datetime.datetime.now()
+    }
+    return session_token
+
+def validate_session(session_token):
+    """セッションを検証"""
+    if session_token not in active_sessions:
+        return None
+    
+    session_data = active_sessions[session_token]
+    
+    # セッションの有効期限チェック（24時間）
+    if datetime.datetime.now() - session_data['created_at'] > datetime.timedelta(hours=24):
+        del active_sessions[session_token]
+        return None
+    
+    # 最終アクティビティを更新
+    session_data['last_activity'] = datetime.datetime.now()
+    return session_data['user_id']
+
+def logout_user(session_token):
+    """ユーザーをログアウト"""
+    if session_token in active_sessions:
+        del active_sessions[session_token]
+        return True
+    return False
+
+def get_user_from_session(session_token):
+    """セッションからユーザー情報を取得"""
+    user_id = validate_session(session_token)
+    if not user_id:
+        return None
+    
+    return get_user_by_id(user_id)

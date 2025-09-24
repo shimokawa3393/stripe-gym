@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - Stripe Gym</title>
+    <link rel="stylesheet" href="../styles/styles.css?v=20241220">
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💪 Stripe Gym</div>
+        <p class="subtitle">ログイン</p>
+        
+        <div class="login-form">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">メールアドレス</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember" name="remember">
+                        <span class="checkmark"></span>
+                        ログイン状態を保持する
+                    </label>
+                </div>
+                
+                <button type="submit" class="login-button">
+                    ログイン
+                </button>
+                
+                <div class="loading" id="loading">
+                    処理中...
+                </div>
+                
+                <div class="error" id="error"></div>
+            </form>
+            
+            <div class="login-links">
+                <p><a onclick="window.location.href='views/user-registration.html'">新規会員登録</a></p>
+                <p><a href="/">パスワードを忘れた場合</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const button = document.querySelector('.login-button');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            
+            // UI状態を更新
+            button.disabled = true;
+            button.textContent = '処理中...';
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                
+                // ここで実際のAPI呼び出しを行う
+                console.log('ログインデータ:', data);
+                
+                // 仮の成功処理
+                setTimeout(() => {
+                    alert('ログインが完了しました！');
+                    window.location.href = 'views/index.html';
+                }, 1000);
+                
+            } catch (err) {
+                console.error('エラー:', err);
+                error.textContent = 'ログイン処理中にエラーが発生しました';
+                error.style.display = 'block';
+                
+                // UI状態をリセット
+                button.disabled = false;
+                button.textContent = 'ログイン';
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

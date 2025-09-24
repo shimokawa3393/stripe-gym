@@ -1,68 +1,95 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stripe Gym - フィットネス会員プラン</title>
     <link rel="stylesheet" href="../styles/styles.css">
 </head>
+
 <body>
     <div class="container">
+        <!-- ナビゲーションボタン -->
+        <div class="nav-buttons">
+            <!-- 未ログイン時 -->
+            <div id="guest-nav" class="nav-section">
+                <button onclick="window.location.href='views/user-registration.html'"
+                    class="nav-button register-button">
+                    新規会員登録
+                </button>
+                <button onclick="window.location.href='views/login.html'" class="nav-button login-button">
+                    ログイン
+                </button>
+            </div>
+
+            <!-- ログイン時 -->
+            <div id="user-nav" class="nav-section" style="display: none;">
+                <span id="user-name" class="user-info"></span>
+                <button onclick="window.location.href='views/mypage.html'" class="nav-button mypage-button">
+                    マイページ
+                </button>
+                <button onclick="logout()" class="nav-button logout-button">
+                    ログアウト
+                </button>
+            </div>
+        </div>
+
         <div class="logo">💪 Stripe Gym</div>
         <p class="subtitle">あなたのフィットネスライフを始めましょう</p>
-        
+
         <div class="plan-cards-container">
-        <div class="plan-card">
-            <h2 class="plan-title">プレミアムプラン</h2>
-            <div class="plan-price">¥9,800</div>
-            <div class="plan-period">月額</div>
-            
-            <ul class="features">
-                <li>24時間アクセス可能</li>
-                <li>全設備利用可能</li>
-                <li>パーソナルトレーニング（月2回）</li>
-                <li>栄養指導サービス</li>
-                <li>グループレッスン無制限</li>
-                <li>ロッカールーム利用</li>
-            </ul>
-            
-            <button id="subscription-button" class="subscription-button">
-                今すぐ始める
-            </button>
-            
-            <div class="loading" id="loading">
-                処理中...
+            <div class="plan-card">
+                <h2 class="plan-title">プレミアムプラン</h2>
+                <div class="plan-price">¥9,800</div>
+                <div class="plan-period">月額</div>
+
+                <ul class="features">
+                    <li>24時間アクセス可能</li>
+                    <li>全設備利用可能</li>
+                    <li>パーソナルトレーニング（月2回）</li>
+                    <li>栄養指導サービス</li>
+                    <li>グループレッスン無制限</li>
+                    <li>ロッカールーム利用</li>
+                </ul>
+
+                <button id="subscription-button" class="subscription-button">
+                    今すぐ始める
+                </button>
+
+                <div class="loading" id="loading">
+                    処理中...
+                </div>
+
+                <div class="error" id="error"></div>
             </div>
-            
-            <div class="error" id="error"></div>
-        </div>
-        
-        <div class="plan-card">
-            <h2 class="plan-title">オリジナルプロテイン</h2>
-            <div class="plan-price">¥4,980</div>
-            <div class="plan-period">1袋（500g）</div>
-            
-            <ul class="features">
-                <li>高品質ホエイプロテイン</li>
-                <li>無添加・無香料</li>
-                <li>1食分25gのタンパク質含有</li>
-                <li>20食分入り</li>
-                <li>即日配送対応</li>
-                <li>30日間返金保証</li>
-            </ul>
-            
-            <button id="checkout-button" class="checkout-button">
-                今すぐ購入
-            </button>
-            
-            <div class="loading" id="loading-product">
-                処理中...
+
+            <div class="plan-card">
+                <h2 class="plan-title">オリジナルプロテイン</h2>
+                <div class="plan-price">¥4,980</div>
+                <div class="plan-period">1袋（500g）</div>
+
+                <ul class="features">
+                    <li>高品質ホエイプロテイン</li>
+                    <li>無添加・無香料</li>
+                    <li>1食分25gのタンパク質含有</li>
+                    <li>20食分入り</li>
+                    <li>即日配送対応</li>
+                    <li>30日間返金保証</li>
+                </ul>
+
+                <button id="checkout-button" class="checkout-button">
+                    今すぐ購入
+                </button>
+
+                <div class="loading" id="loading-product">
+                    処理中...
+                </div>
+
+                <div class="error" id="error-product"></div>
             </div>
-            
-            <div class="error" id="error-product"></div>
         </div>
-        </div>
-        
+
         <div class="footer">
             <p>安全で確実な決済処理をStripeが提供します</p>
         </div>
@@ -72,4 +99,5 @@
     <script src="https://js.stripe.com/v3/"></script>
     <script src="../js/app.js?v=20241220" defer></script>
 </body>
+
 </html>
