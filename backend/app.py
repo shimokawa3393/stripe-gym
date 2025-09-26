@@ -3,7 +3,7 @@ import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
 from flask_cors import CORS
-from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session
+from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session, get_user_by_id, get_user_purchase_history, get_user_subscriptions
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
@@ -38,6 +38,13 @@ init_db()
 def checkout_api():
     # ドメインURLを組み立て（Dockerの場合ホスト名に注意。ローカルテスト用にlocalhost使用）
     try:
+        # セッショントークンからユーザーIDを取得
+        user_id = None
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            token = session_token[7:]  # "Bearer "を除去
+            user_id = validate_session(token)
+        
         # StripeのCheckout Sessionを作成
         checkout_session = stripe.checkout.Session.create(
             success_url = f"{BASE_URL}/success-checkout?session_id={{CHECKOUT_SESSION_ID}}",    # 支払い成功後に戻るURL
@@ -53,7 +60,11 @@ def checkout_api():
                     },
                     'quantity': 1,
                 }
-            ]
+            ],
+            metadata={
+                'user_id': str(user_id) if user_id else '',
+                'product_name': 'オリジナルプロテイン'
+            }
         )
         return jsonify({"id": checkout_session.id})   # ← JSONで返す
     except Exception as e:
@@ -65,6 +76,13 @@ def checkout_api():
 @app.route("/api/subscription", methods=["POST"])
 def subscription_api():
     try:
+        # セッショントークンからユーザーIDを取得
+        user_id = None
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            token = session_token[7:]  # "Bearer "を除去
+            user_id = validate_session(token)
+        
         subscription_session = stripe.checkout.Session.create(
             success_url=f"{BASE_URL}/success-subscription?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{BASE_URL}/cancel",
@@ -72,6 +90,10 @@ def subscription_api():
             payment_method_types=["card"],
             line_items=[{"price": PRICE_ID, "quantity": 1}],
             allow_promotion_codes=True,
+            metadata={
+                'user_id': str(user_id) if user_id else '',
+                'product_name': 'プレミアムプラン'
+            }
         )
         return jsonify({"id": subscription_session.id})   # ← JSONで返す
     except Exception as e:
@@ -88,8 +110,8 @@ def register_api():
         name = data.get("name")
         phone = data.get("phone")
         birthdate = data.get("birthdate")
-        terms_accepted = data.get("terms", False)
-        privacy_accepted = data.get("privacy", False)
+        terms_accepted = data.get("terms") == "on" or data.get("terms") == True
+        privacy_accepted = data.get("privacy") == "on" or data.get("privacy") == True
         
         # 必須項目のチェック
         if not email or not password or not name:
@@ -155,10 +177,14 @@ def login_api():
         
         # セッションを作成
         session_token = create_session(user.id)
+        print(f"ログイン成功: user_id={user.id}, session_token={session_token[:10]}...")
         
         return jsonify({
             "success": True,
             "message": "ログインが完了しました",
+            "user_id": user.id,
+            "user_name": user.name,
+            "user_email": user.email,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -208,11 +234,15 @@ def verify_session_api():
         data = request.get_json()
         session_token = data.get("session_token")
         
+        print(f"セッション検証: token={session_token[:10] if session_token else None}...")
+        
         if not session_token:
             return jsonify({"error": "セッショントークンが必要です"}), 400
         
         # セッションを検証
         user_id = validate_session(session_token)
+        print(f"セッション検証結果: user_id={user_id}")
+        
         if not user_id:
             return jsonify({"error": "無効なセッションです"}), 401
         
@@ -223,7 +253,96 @@ def verify_session_api():
         }), 200
         
     except Exception as e:
+        print(f"セッション検証エラー: {str(e)}")
         return jsonify({"error": f"セッション検証中にエラーが発生しました: {str(e)}"}), 500
+
+
+# ユーザー情報取得API
+@app.route("/api/user-info", methods=["POST"])
+def user_info_api():
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "ユーザーIDが必要です"}), 400
+        
+        user = get_user_by_id(user_id)
+        if user:
+            return jsonify({
+                "success": True,
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "phone": user.phone,
+                    "birthdate": user.birthdate.strftime('%Y-%m-%d') if user.birthdate else None,
+                    "created_at": user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None
+                }
+            }), 200
+        else:
+            return jsonify({"success": False, "error": "ユーザーが見つかりません"}), 404
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ユーザー購入履歴取得API
+@app.route("/api/user-purchase-history", methods=["POST"])
+def user_purchase_history_api():
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "ユーザーIDが必要です"}), 400
+        
+        purchases = get_user_purchase_history(user_id)
+        return jsonify({
+            "success": True,
+            "purchases": [
+                {
+                    "session_id": purchase.session_id,
+                    "product_name": purchase.product_name,
+                    "amount": float(purchase.amount) if purchase.amount else 0,
+                    "currency": purchase.currency,
+                    "status": purchase.status,
+                    "created_at": purchase.created_at
+                }
+                for purchase in purchases
+            ]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ユーザーサブスクリプション履歴取得API
+@app.route("/api/user-subscription-history", methods=["POST"])
+def user_subscription_history_api():
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "ユーザーIDが必要です"}), 400
+        
+        subscriptions = get_user_subscriptions(user_id)
+        return jsonify({
+            "success": True,
+            "subscriptions": [
+                {
+                    "id": subscription.id,
+                    "price_id": subscription.price_id,
+                    "status": subscription.status,
+                    "created_at": subscription.created_at
+                }
+                for subscription in subscriptions
+            ]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ウェブフックエンドポイント
@@ -266,29 +385,6 @@ def stripe_webhook():
         
     # 素早く成功レスポンスを返す
     return "", 200  
-
-
-# 台帳表示ページ
-@app.route("/ledger", methods=["GET"])
-def show_ledger():
-    rows = get_ledger()
-    # シンプルにテキストで一覧表示（実際は適切にフォーマットする）
-    result = "SessionID | Amount | Currency | Status | Created\n"
-    
-    for r in rows:
-        result += f"{r.session_id}, {r.amount}, {r.currency}, {r.status}, {r.created_at}\n"
-        
-    return "<pre>" + result + "</pre>"
-
-
-# 定期課金情報表示ページ
-@app.route("/subscriptions", methods=["GET"])
-def show_subscriptions():
-    rows = get_subscriptions()
-    result = "SubscriptionID | CustomerID | PriceID | Status | CurrentPeriodEnd | TrialEnd | LatestInvoice | Created\n"
-    for r in rows:
-        result += f"{r.id}, {r.customer_id}, {r.price_id}, {r.status}, {r.current_period_end}, {r.trial_end}, {r.latest_invoice}, {r.created_at}\n"
-    return "<pre>" + result + "</pre>"
 
 
 # ヘルスチェックエンドポイント

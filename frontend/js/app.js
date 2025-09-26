@@ -1,7 +1,14 @@
 // 決済関連
 
-// 設定からStripeの公開可能キーを取得
-const stripe = Stripe(window.AppConfig.stripe.publishableKey);
+// Stripeライブラリの読み込みを待つ
+let stripe;
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Stripe !== 'undefined') {
+        stripe = Stripe(window.AppConfig.stripe.publishableKey);
+    } else {
+        console.error('Stripeライブラリが読み込まれていません');
+    }
+});
 
 // サブスクリプション購入用のcheckout関数
 document.getElementById('subscription-button').addEventListener('click', async () => {
@@ -16,11 +23,20 @@ document.getElementById('subscription-button').addEventListener('click', async (
     error.style.display = 'none';
     
     try {
+        // セッショントークンを取得
+        const sessionToken = localStorage.getItem('session_token');
+        const headers = { 
+            "Content-Type": "application/json" 
+        };
+        
+        // ログインしている場合はAuthorizationヘッダーを追加
+        if (sessionToken) {
+            headers["Authorization"] = `Bearer ${sessionToken}`;
+        }
+        
         const response = await fetch(window.AppConfig.api.baseUrl + window.AppConfig.api.subscriptionEndpoint, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json" 
-            },
+            headers: headers,
             body: JSON.stringify({ 
                 price_id: window.AppConfig.stripe.priceId // 設定から価格IDを取得
             })
@@ -67,11 +83,20 @@ document.getElementById('checkout-button').addEventListener('click', async () =>
     error.style.display = 'none';
     
     try {
+        // セッショントークンを取得
+        const sessionToken = localStorage.getItem('session_token');
+        const headers = { 
+            "Content-Type": "application/json" 
+        };
+        
+        // ログインしている場合はAuthorizationヘッダーを追加
+        if (sessionToken) {
+            headers["Authorization"] = `Bearer ${sessionToken}`;
+        }
+        
         const response = await fetch(window.AppConfig.api.baseUrl + window.AppConfig.api.checkoutEndpoint, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json" 
-            },
+            headers: headers,
             body: JSON.stringify({})
         });
         console.log(response);
@@ -117,6 +142,8 @@ function checkLoginStatus() {
     const sessionToken = localStorage.getItem('session_token');
     const userName = localStorage.getItem('user_name');
     
+    console.log('ログイン状態確認:', { sessionToken: !!sessionToken, userName });
+    
     if (sessionToken && userName) {
         // セッションの有効性を確認
         fetch(window.AppConfig.api.baseUrl + '/api/verify-session', {
@@ -126,11 +153,13 @@ function checkLoginStatus() {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('セッション確認結果:', data);
             if (data.success) {
                 // ログイン状態を表示
                 showLoggedInState(userName);
             } else {
                 // セッションが無効な場合
+                console.log('セッションが無効です');
                 showGuestState();
             }
         })
@@ -140,6 +169,7 @@ function checkLoginStatus() {
         });
     } else {
         // 未ログイン状態を表示
+        console.log('セッショントークンまたはユーザー名がありません');
         showGuestState();
     }
 }
@@ -150,10 +180,15 @@ function showLoggedInState(userName) {
     const userNav = document.getElementById('user-nav');
     const userNameElement = document.getElementById('user-name');
     
+    console.log('ログイン状態表示:', { guestNav: !!guestNav, userNav: !!userNav, userNameElement: !!userNameElement });
+    
     if (guestNav && userNav && userNameElement) {
         guestNav.style.display = 'none';
         userNav.style.display = 'block';
         userNameElement.textContent = `こんにちは、${userName}さん`;
+        console.log('ログイン状態に切り替えました');
+    } else {
+        console.log('ナビゲーション要素が見つかりません（このページにはナビゲーションがない可能性があります）');
     }
 }
 
@@ -162,9 +197,14 @@ function showGuestState() {
     const guestNav = document.getElementById('guest-nav');
     const userNav = document.getElementById('user-nav');
     
+    console.log('未ログイン状態表示:', { guestNav: !!guestNav, userNav: !!userNav });
+    
     if (guestNav && userNav) {
         guestNav.style.display = 'block';
         userNav.style.display = 'none';
+        console.log('未ログイン状態に切り替えました');
+    } else {
+        console.log('ナビゲーション要素が見つかりません（このページにはナビゲーションがない可能性があります）');
     }
     
     localStorage.removeItem('session_token');
@@ -186,6 +226,8 @@ function logout() {
             if (data.success) {
                 alert('ログアウトしました');
                 showGuestState();
+                // ホーム画面に遷移
+                window.location.href = 'home.html';
             } else {
                 alert('ログアウトに失敗しました');
             }
@@ -193,8 +235,13 @@ function logout() {
         .catch(error => {
             console.error('ログアウトエラー:', error);
             alert('ログアウト中にエラーが発生しました');
+            // エラーが発生してもホーム画面に遷移
+            showGuestState();
+            window.location.href = 'home.html';
         });
     } else {
         showGuestState();
+        // セッショントークンがない場合もホーム画面に遷移
+        window.location.href = 'home.html';
     }
 }

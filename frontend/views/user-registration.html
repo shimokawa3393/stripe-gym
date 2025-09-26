@@ -109,14 +109,28 @@
                 const formData = new FormData(e.target);
                 const data = Object.fromEntries(formData);
 
-                // ここで実際のAPI呼び出しを行う
-                console.log('登録データ:', data);
+                // チェックボックスの値をBooleanに変換
+                data.terms = data.terms === 'on';
+                data.privacy = data.privacy === 'on';
 
-                // 仮の成功処理
-                setTimeout(() => {
+                // API呼び出し
+                const response = await fetch(window.AppConfig.api.baseUrl + '/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
                     alert('会員登録が完了しました！');
-                    window.location.href = 'views/login.html';
-                }, 1000);
+                    window.location.href = 'login.html';
+                } else {
+                    error.textContent = result.error || '登録に失敗しました';
+                    error.style.display = 'block';
+                }
 
             } catch (err) {
                 console.error('エラー:', err);

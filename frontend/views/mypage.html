@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイページ - Stripe Gym</title>
+    <link rel="stylesheet" href="../styles/styles.css?v=20241220">
+</head>
+
+<body>
+    <div class="container">
+        <!-- ナビゲーションボタン -->
+        <div class="nav-buttons">
+            <div class="nav-section">
+                <button onclick="window.location.href='home.html'" class="nav-button home-button">
+                    ホーム
+                </button>
+                <button onclick="logout()" class="nav-button logout-button">
+                    ログアウト
+                </button>
+            </div>
+        </div>
+
+        <div class="logo">💪 Stripe Gym</div>
+        <p class="subtitle">マイページ</p>
+
+        <!-- ユーザー情報セクション -->
+        <div class="user-info-section">
+            <h2>ユーザー情報</h2>
+            <div class="user-details">
+                <div class="user-detail-item">
+                    <span class="label">お名前:</span>
+                    <span id="user-name" class="value">-</span>
+                </div>
+                <div class="user-detail-item">
+                    <span class="label">メールアドレス:</span>
+                    <span id="user-email" class="value">-</span>
+                </div>
+                <div class="user-detail-item">
+                    <span class="label">電話番号:</span>
+                    <span id="user-phone" class="value">-</span>
+                </div>
+                <div class="user-detail-item">
+                    <span class="label">生年月日:</span>
+                    <span id="user-birthdate" class="value">-</span>
+                </div>
+                <div class="user-detail-item">
+                    <span class="label">会員登録日:</span>
+                    <span id="user-created" class="value">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- アクティブサブスクリプション -->
+        <div class="subscription-section">
+            <h2>アクティブサブスクリプション</h2>
+            <div id="active-subscription" class="subscription-card">
+                <div class="no-data">現在アクティブなサブスクリプションはありません</div>
+            </div>
+        </div>
+
+        <!-- 購入履歴 -->
+        <div class="purchase-history-section">
+            <h2>購入履歴</h2>
+            <div id="purchase-history" class="history-list">
+                <div class="no-data">購入履歴はありません</div>
+            </div>
+        </div>
+
+        <!-- サブスクリプション履歴 -->
+        <div class="subscription-history-section">
+            <h2>サブスクリプション履歴</h2>
+            <div id="subscription-history" class="history-list">
+                <div class="no-data">サブスクリプション履歴はありません</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/config.js?v=20241220"></script>
+    <script src="../js/app.js?v=20241220" defer></script>
+
+    <script>
+        // ページ読み込み時にユーザー情報を取得
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            loadUserData();
+        });
+
+        // ユーザーデータを読み込み
+        function loadUserData() {
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                alert('ログインが必要です');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // セッション検証
+            fetch(window.AppConfig.api.baseUrl + '/api/verify-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_token: sessionToken })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // ユーザー情報を表示
+                    displayUserInfo(data.user_id);
+                    // 購入履歴を取得
+                    loadPurchaseHistory(data.user_id);
+                    // サブスクリプション履歴を取得
+                    loadSubscriptionHistory(data.user_id);
+                } else {
+                    alert('セッションが無効です');
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('セッション確認エラー:', error);
+                alert('エラーが発生しました');
+                window.location.href = 'login.html';
+            });
+        }
+
+        // ユーザー情報を表示
+        function displayUserInfo(userId) {
+            // APIからユーザー情報を取得
+            fetch(window.AppConfig.api.baseUrl + '/api/user-info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const user = data.user;
+                    document.getElementById('user-name').textContent = user.name || '-';
+                    document.getElementById('user-email').textContent = user.email || '-';
+                    document.getElementById('user-phone').textContent = user.phone || '-';
+                    document.getElementById('user-birthdate').textContent = user.birthdate || '-';
+                    document.getElementById('user-created').textContent = user.created_at ? new Date(user.created_at).toLocaleDateString('ja-JP') : '-';
+                } else {
+                    // APIから取得できない場合はローカルストレージから表示
+                    const userName = localStorage.getItem('user_name');
+                    const userEmail = localStorage.getItem('user_email');
+                    
+                    document.getElementById('user-name').textContent = userName || '-';
+                    document.getElementById('user-email').textContent = userEmail || '-';
+                    document.getElementById('user-phone').textContent = '-';
+                    document.getElementById('user-birthdate').textContent = '-';
+                    document.getElementById('user-created').textContent = new Date().toLocaleDateString('ja-JP');
+                }
+            })
+            .catch(error => {
+                console.error('ユーザー情報取得エラー:', error);
+                // エラーの場合はローカルストレージから表示
+                const userName = localStorage.getItem('user_name');
+                const userEmail = localStorage.getItem('user_email');
+                
+                document.getElementById('user-name').textContent = userName || '-';
+                document.getElementById('user-email').textContent = userEmail || '-';
+                document.getElementById('user-phone').textContent = '-';
+                document.getElementById('user-birthdate').textContent = '-';
+                document.getElementById('user-created').textContent = new Date().toLocaleDateString('ja-JP');
+            });
+        }
+
+        // 購入履歴を読み込み
+        function loadPurchaseHistory(userId) {
+            fetch(window.AppConfig.api.baseUrl + '/api/user-purchase-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const historyContainer = document.getElementById('purchase-history');
+                
+                if (data.success && data.purchases && data.purchases.length > 0) {
+                    historyContainer.innerHTML = data.purchases.map(purchase => `
+                        <div class="history-item">
+                            <div class="history-item-info">
+                                <div class="history-item-title">${purchase.product_name || '商品'}</div>
+                                <div class="history-item-date">${new Date(purchase.created_at).toLocaleDateString('ja-JP')}</div>
+                            </div>
+                            <div class="history-item-status status-completed">完了</div>
+                        </div>
+                    `).join('');
+                } else {
+                    historyContainer.innerHTML = '<div class="no-data">購入履歴はありません</div>';
+                }
+            })
+            .catch(error => {
+                console.error('購入履歴取得エラー:', error);
+                const historyContainer = document.getElementById('purchase-history');
+                historyContainer.innerHTML = '<div class="no-data">購入履歴の取得に失敗しました</div>';
+            });
+        }
+
+        // サブスクリプション履歴を読み込み
+        function loadSubscriptionHistory(userId) {
+            fetch(window.AppConfig.api.baseUrl + '/api/user-subscription-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const historyContainer = document.getElementById('subscription-history');
+                
+                if (data.success && data.subscriptions && data.subscriptions.length > 0) {
+                    historyContainer.innerHTML = data.subscriptions.map(subscription => `
+                        <div class="history-item">
+                            <div class="history-item-info">
+                                <div class="history-item-title">${subscription.price_id || 'サブスクリプション'}</div>
+                                <div class="history-item-date">${new Date(subscription.created_at).toLocaleDateString('ja-JP')}</div>
+                            </div>
+                            <div class="history-item-status ${subscription.status === 'active' ? 'status-active' : 'status-cancelled'}">
+                                ${subscription.status === 'active' ? 'アクティブ' : 'キャンセル済み'}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    historyContainer.innerHTML = '<div class="no-data">サブスクリプション履歴はありません</div>';
+                }
+            })
+            .catch(error => {
+                console.error('サブスクリプション履歴取得エラー:', error);
+                const historyContainer = document.getElementById('subscription-history');
+                historyContainer.innerHTML = '<div class="no-data">サブスクリプション履歴の取得に失敗しました</div>';
+            });
+        }
+    </script>
+</body>
+
+</html>

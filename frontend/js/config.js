@@ -10,7 +10,15 @@ const config = {
     api: {
         baseUrl: "http://localhost:5001",
         checkoutEndpoint: "/api/checkout",
-        subscriptionEndpoint: "/api/subscription"
+        subscriptionEndpoint: "/api/subscription",
+        registerEndpoint: "/api/register",
+        loginEndpoint: "/api/login",
+        logoutEndpoint: "/api/logout",
+        verifySessionEndpoint: "/api/verify-session",
+        userInfoEndpoint: "/api/user-info",
+        userPurchaseHistoryEndpoint: "/api/user-purchase-history",
+        userSubscriptionHistoryEndpoint: "/api/user-subscription-history"
+
     },
     
     // アプリケーション設定

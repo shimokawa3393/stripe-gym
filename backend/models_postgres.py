@@ -12,9 +12,10 @@ from sqlalchemy import (
     CheckConstraint,
     Boolean,
     Date,
+    ForeignKey,
     create_engine,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -77,11 +78,58 @@ class Invoice(Base):
     created = Column(Integer)  # Unix timestampで統一
 
 
+# セッション管理用のテーブル
+class UserSession(Base):
+    __tablename__ = 'user_sessions'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    session_token = Column(String(255), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_activity = Column(DateTime, default=datetime.datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    
+    # リレーション
+    user = relationship("User", backref="sessions")
+
+
 # データベースを初期化
 def init_db():
     global engine
     engine = create_engine(os.getenv("DATABASE_URL"))
-    Base.metadata.create_all(engine)
+    
+    # テーブルが存在しない場合のみ作成
+    try:
+        # 既存のテーブルをチェック
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        
+        # 必要なテーブルを個別に作成
+        tables_to_create = []
+        
+        if 'users' not in existing_tables:
+            tables_to_create.append(User.__table__)
+        if 'ledger' not in existing_tables:
+            tables_to_create.append(Ledger.__table__)
+        if 'subscriptions' not in existing_tables:
+            tables_to_create.append(Subscription.__table__)
+        if 'user_sessions' not in existing_tables:
+            tables_to_create.append(UserSession.__table__)
+        
+        # 必要なテーブルのみ作成
+        for table in tables_to_create:
+            table.create(engine, checkfirst=True)
+            
+        logger.info("データベース初期化完了")
+        
+    except Exception as e:
+        logger.error(f"データベース初期化エラー: {e}")
+        # フォールバック: 全テーブルを作成
+        try:
+            Base.metadata.create_all(engine)
+        except Exception as fallback_error:
+            logger.warning(f"フォールバックでもエラー: {fallback_error}")
 
 
 # セッションを取得
@@ -133,6 +181,12 @@ def record_ledger(webhook_object, user_id=None, product_name=None):
     try:
         session = get_session()
 
+        # 既存のレコードをチェック
+        existing_entry = session.query(Ledger).filter_by(session_id=session_id).first()
+        if existing_entry:
+            logger.info(f"Ledger entry already exists: {session_id}")
+            return existing_entry
+
         ledger_entry = Ledger(
             session_id=session_id,
             user_id=user_id,
@@ -145,9 +199,21 @@ def record_ledger(webhook_object, user_id=None, product_name=None):
         session.add(ledger_entry)
         session.commit()
         logger.info(f"Ledger recorded: {ledger_entry.session_id}")
+        return ledger_entry
     except Exception as e:
         logger.error(f"Error recording ledger: {e}")
         session.rollback()
+        
+        # 重複キーエラーの場合は既存レコードを返す
+        if "duplicate key value violates unique constraint" in str(e):
+            logger.info(f"Duplicate key error for session_id: {session_id}, returning existing entry")
+            try:
+                existing_entry = session.query(Ledger).filter_by(session_id=session_id).first()
+                if existing_entry:
+                    return existing_entry
+            except Exception as query_error:
+                logger.error(f"Error querying existing entry: {query_error}")
+        
         raise e
     finally:
         session.close()
@@ -188,6 +254,7 @@ def upsert_subscription(webhook_object, user_id=None):
         
         # 既存のサブスクリプションをチェック（Stripe IDで検索）
         existing_subscription = session.query(Subscription).filter_by(id=subscription_id).first()
+        logger.info(f"Checking existing subscription for ID: {subscription_id}, found: {existing_subscription is not None}")
         
         if existing_subscription:
             # 既存のサブスクリプションを更新
@@ -215,9 +282,21 @@ def upsert_subscription(webhook_object, user_id=None):
             logger.info(f"Subscription created: {subscription_entry.id}")
             
         session.commit()
+        return existing_subscription if existing_subscription else subscription_entry
     except Exception as e:
         logger.error(f"Error recording subscription: {e}")
         session.rollback()
+        
+        # 重複キーエラーの場合は既存レコードを返す
+        if "duplicate key value violates unique constraint" in str(e):
+            logger.info(f"Duplicate key error for subscription_id: {subscription_id}, returning existing entry")
+            try:
+                existing_subscription = session.query(Subscription).filter_by(id=subscription_id).first()
+                if existing_subscription:
+                    return existing_subscription
+            except Exception as query_error:
+                logger.error(f"Error querying existing subscription: {query_error}")
+        
         raise e
     finally:
         session.close()
@@ -236,25 +315,39 @@ def record_invoice(webhook_object):
     try:
         # 既存の請求書をチェック
         existing_invoice = session.query(Invoice).filter_by(id=invoice_id).first()
+        logger.info(f"Checking existing invoice for ID: {invoice_id}, found: {existing_invoice is not None}")
         
-        if not existing_invoice:
-            invoice_entry = Invoice(
-                id=invoice_id,
-                subscription_id=subscription_id,
-                status=status,
-                amount_due=amount_due,
-                currency=currency,
-                created=created,
-            )
-            session.add(invoice_entry)
-            logger.info(f"Invoice recorded: {invoice_entry.id}")
-        else:
+        if existing_invoice:
             logger.info(f"Invoice already exists: {invoice_id}")
-            
+            return existing_invoice
+        
+        # 新しいインボイスを作成
+        invoice_entry = Invoice(
+            id=invoice_id,
+            subscription_id=subscription_id,
+            status=status,
+            amount_due=amount_due,
+            currency=currency,
+            created=created,
+        )
+        session.add(invoice_entry)
+        logger.info(f"Invoice recorded: {invoice_entry.id}")
         session.commit()
+        return invoice_entry
     except Exception as e:
         logger.error(f"Error recording invoice: {e}")
         session.rollback()
+        
+        # 重複キーエラーの場合は既存レコードを返す
+        if "duplicate key value violates unique constraint" in str(e):
+            logger.info(f"Duplicate key error for invoice_id: {invoice_id}, returning existing entry")
+            try:
+                existing_invoice = session.query(Invoice).filter_by(id=invoice_id).first()
+                if existing_invoice:
+                    return existing_invoice
+            except Exception as query_error:
+                logger.error(f"Error querying existing invoice: {query_error}")
+        
         raise e
     finally:
         session.close()
@@ -423,41 +516,96 @@ def authenticate_user(email, password):
         session.close()
 
 
-# セッション管理用の辞書（実際のアプリケーションではRedis等を使用）
-active_sessions = {}
 
 def create_session(user_id):
     """ユーザーセッションを作成"""
     session_token = secrets.token_urlsafe(32)
-    active_sessions[session_token] = {
-        'user_id': user_id,
-        'created_at': datetime.datetime.now(),
-        'last_activity': datetime.datetime.now()
-    }
-    return session_token
+    
+    try:
+        session = get_session()
+        
+        # 既存のセッションを無効化
+        session.query(UserSession).filter(
+            UserSession.user_id == user_id,
+            UserSession.is_active == True
+        ).update({'is_active': False})
+        
+        # 新しいセッションを作成
+        new_session = UserSession(
+            user_id=user_id,
+            session_token=session_token,
+            created_at=datetime.datetime.utcnow(),
+            last_activity=datetime.datetime.utcnow(),
+            is_active=True
+        )
+        
+        session.add(new_session)
+        session.commit()
+        
+        return session_token
+        
+    except Exception as e:
+        logger.error(f"Error creating session: {e}")
+        session.rollback()
+        raise e
+    finally:
+        session.close()
 
 def validate_session(session_token):
     """セッションを検証"""
-    if session_token not in active_sessions:
+    try:
+        session = get_session()
+        
+        # セッションを検索
+        user_session = session.query(UserSession).filter(
+            UserSession.session_token == session_token,
+            UserSession.is_active == True
+        ).first()
+        
+        if not user_session:
+            return None
+        
+        # セッションの有効期限チェック（24時間）
+        if datetime.datetime.utcnow() - user_session.created_at > datetime.timedelta(hours=24):
+            user_session.is_active = False
+            session.commit()
+            return None
+        
+        # 最終アクティビティを更新
+        user_session.last_activity = datetime.datetime.utcnow()
+        session.commit()
+        
+        return user_session.user_id
+        
+    except Exception as e:
+        logger.error(f"Error validating session: {e}")
         return None
-    
-    session_data = active_sessions[session_token]
-    
-    # セッションの有効期限チェック（24時間）
-    if datetime.datetime.now() - session_data['created_at'] > datetime.timedelta(hours=24):
-        del active_sessions[session_token]
-        return None
-    
-    # 最終アクティビティを更新
-    session_data['last_activity'] = datetime.datetime.now()
-    return session_data['user_id']
+    finally:
+        session.close()
 
 def logout_user(session_token):
     """ユーザーをログアウト"""
-    if session_token in active_sessions:
-        del active_sessions[session_token]
-        return True
-    return False
+    try:
+        session = get_session()
+        
+        # セッションを無効化
+        user_session = session.query(UserSession).filter(
+            UserSession.session_token == session_token,
+            UserSession.is_active == True
+        ).first()
+        
+        if user_session:
+            user_session.is_active = False
+            session.commit()
+            return True
+        return False
+            
+    except Exception as e:
+        logger.error(f"Error logging out user: {e}")
+        session.rollback()
+        return False
+    finally:
+        session.close()
 
 def get_user_from_session(session_token):
     """セッションからユーザー情報を取得"""
