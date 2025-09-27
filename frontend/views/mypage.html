@@ -108,6 +108,8 @@
                 if (data.success) {
                     // ユーザー情報を表示
                     displayUserInfo(data.user_id);
+                    // アクティブサブスクリプションを取得
+                    loadActiveSubscription(data.user_id);
                     // 購入履歴を取得
                     loadPurchaseHistory(data.user_id);
                     // サブスクリプション履歴を取得
@@ -167,6 +169,52 @@
             });
         }
 
+        // アクティブサブスクリプションを読み込み
+        function loadActiveSubscription(userId) {
+            fetch(window.AppConfig.api.baseUrl + '/api/user-subscription-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const activeContainer = document.getElementById('active-subscription');
+                
+                if (data.success && data.subscriptions && data.subscriptions.length > 0) {
+                    // アクティブなサブスクリプションを探す
+                    const activeSubscription = data.subscriptions.find(sub => sub.status === 'active');
+                    
+                    if (activeSubscription) {
+                        activeContainer.innerHTML = `
+                            <div class="history-item">
+                                <div class="history-item-info">
+                                    <div class="history-item-details">
+                                        <div class="history-item-title">${activeSubscription.plan_name || activeSubscription.price_id || 'サブスクリプション'}</div>
+                                        <div class="history-item-date">${new Date(activeSubscription.created_at).toLocaleDateString('ja-JP')}</div>
+                                    </div>
+                                    <div class="history-item-status status-active">アクティブ</div>
+                                </div>
+                                <div class="history-item-actions">
+                                    <button class="cancel-subscription-button" onclick="cancelSubscription('${activeSubscription.id}')">
+                                        解約する
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        activeContainer.innerHTML = '<div class="no-data">現在アクティブなサブスクリプションはありません</div>';
+                    }
+                } else {
+                    activeContainer.innerHTML = '<div class="no-data">現在アクティブなサブスクリプションはありません</div>';
+                }
+            })
+            .catch(error => {
+                console.error('アクティブサブスクリプション取得エラー:', error);
+                const activeContainer = document.getElementById('active-subscription');
+                activeContainer.innerHTML = '<div class="no-data">アクティブサブスクリプションの取得に失敗しました</div>';
+            });
+        }
+
         // 購入履歴を読み込み
         function loadPurchaseHistory(userId) {
             fetch(window.AppConfig.api.baseUrl + '/api/user-purchase-history', {
@@ -182,10 +230,12 @@
                     historyContainer.innerHTML = data.purchases.map(purchase => `
                         <div class="history-item">
                             <div class="history-item-info">
-                                <div class="history-item-title">${purchase.product_name || '商品'}</div>
-                                <div class="history-item-date">${new Date(purchase.created_at).toLocaleDateString('ja-JP')}</div>
+                                <div class="history-item-details">
+                                    <div class="history-item-title">${purchase.product_name || '商品'}</div>
+                                    <div class="history-item-date">${new Date(purchase.created_at).toLocaleDateString('ja-JP')}</div>
+                                </div>
+                                <div class="history-item-status status-completed">完了</div>
                             </div>
-                            <div class="history-item-status status-completed">完了</div>
                         </div>
                     `).join('');
                 } else {
@@ -214,11 +264,16 @@
                     historyContainer.innerHTML = data.subscriptions.map(subscription => `
                         <div class="history-item">
                             <div class="history-item-info">
-                                <div class="history-item-title">${subscription.price_id || 'サブスクリプション'}</div>
-                                <div class="history-item-date">${new Date(subscription.created_at).toLocaleDateString('ja-JP')}</div>
-                            </div>
-                            <div class="history-item-status ${subscription.status === 'active' ? 'status-active' : 'status-cancelled'}">
-                                ${subscription.status === 'active' ? 'アクティブ' : 'キャンセル済み'}
+                                <div class="history-item-details">
+                                    <div class="history-item-title">${subscription.plan_name || subscription.price_id || 'サブスクリプション'}</div>
+                                    <div class="history-item-date">${new Date(subscription.created_at).toLocaleDateString('ja-JP')}</div>
+                                </div>
+                                <div class="history-item-status ${subscription.status === 'active' ? 'status-active' : 'status-cancelled'}">
+                                    ${subscription.status === 'active' ? 'アクティブ' : 
+                                      subscription.status === 'canceled' ? 'キャンセル済み' : 
+                                      subscription.status === 'cancelled' ? 'キャンセル済み' : 
+                                      subscription.status || '不明'}
+                                </div>
                             </div>
                         </div>
                     `).join('');
@@ -230,6 +285,56 @@
                 console.error('サブスクリプション履歴取得エラー:', error);
                 const historyContainer = document.getElementById('subscription-history');
                 historyContainer.innerHTML = '<div class="no-data">サブスクリプション履歴の取得に失敗しました</div>';
+            });
+        }
+
+        // サブスクリプション解約処理
+        function cancelSubscription(subscriptionId) {
+            if (!confirm('サブスクリプションを解約しますか？\n現在の期間終了時にキャンセルされます。')) {
+                return;
+            }
+
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                alert('ログインが必要です');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // 解約ボタンを無効化
+            const cancelButton = event.target;
+            const originalText = cancelButton.textContent;
+            cancelButton.disabled = true;
+            cancelButton.textContent = '処理中...';
+
+            fetch(window.AppConfig.api.baseUrl + '/api/cancel-subscription', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                },
+                body: JSON.stringify({ subscription_id: subscriptionId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'サブスクリプションの解約が完了しました');
+                    // ページを再読み込みして最新の状態を表示
+                    location.reload();
+                } else {
+                    alert(data.error || '解約処理中にエラーが発生しました');
+                    // ボタンを元に戻す
+                    cancelButton.disabled = false;
+                    cancelButton.textContent = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('解約エラー:', error);
+                alert('解約処理中にエラーが発生しました');
+                // ボタンを元に戻す
+                cancelButton.disabled = false;
+                cancelButton.textContent = originalText;
             });
         }
     </script>

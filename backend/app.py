@@ -3,7 +3,7 @@ import stripe
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
 from flask_cors import CORS
-from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session, get_user_by_id, get_user_purchase_history, get_user_subscriptions
+from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session, get_user_by_id, get_user_purchase_history, get_user_subscriptions, get_plan_name_from_price_id
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
@@ -76,6 +76,11 @@ def checkout_api():
 @app.route("/api/subscription", methods=["POST"])
 def subscription_api():
     try:
+        # リクエストボディからプラン情報を取得
+        data = request.get_json()
+        plan_name = data.get("plan_name", "プレミアムプラン")
+        plan_type = data.get("plan_type", "premium")  # standard または premium
+        
         # セッショントークンからユーザーIDを取得
         user_id = None
         session_token = request.headers.get('Authorization')
@@ -83,16 +88,27 @@ def subscription_api():
             token = session_token[7:]  # "Bearer "を除去
             user_id = validate_session(token)
         
+        # プランタイプに応じて価格IDを決定
+        if plan_type == "standard":
+            # スタンダードプランの価格ID（環境変数から取得）
+            price_id = os.getenv("STANDARD_PRICE_ID", PRICE_ID)  # デフォルトはプレミアムプラン
+            product_name = "スタンダードプラン"
+        else:
+            # プレミアムプランの価格ID
+            price_id = os.getenv("PREMIUM_PRICE_ID", PRICE_ID)
+            product_name = "プレミアムプラン"
+        
         subscription_session = stripe.checkout.Session.create(
             success_url=f"{BASE_URL}/success-subscription?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{BASE_URL}/cancel",
             mode="subscription",
             payment_method_types=["card"],
-            line_items=[{"price": PRICE_ID, "quantity": 1}],
+            line_items=[{"price": price_id, "quantity": 1}],
             allow_promotion_codes=True,
             metadata={
                 'user_id': str(user_id) if user_id else '',
-                'product_name': 'プレミアムプラン'
+                'product_name': product_name,
+                'plan_type': plan_type
             }
         )
         return jsonify({"id": subscription_session.id})   # ← JSONで返す
@@ -333,7 +349,9 @@ def user_subscription_history_api():
             "subscriptions": [
                 {
                     "id": subscription.id,
+                    "subscription_id": subscription.id,  # subscription_idはidと同じ値
                     "price_id": subscription.price_id,
+                    "plan_name": get_plan_name_from_price_id(subscription.price_id),
                     "status": subscription.status,
                     "created_at": subscription.created_at
                 }
@@ -343,6 +361,58 @@ def user_subscription_history_api():
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# サブスクリプション解約API
+@app.route("/api/cancel-subscription", methods=["POST"])
+def cancel_subscription_api():
+    try:
+        data = request.get_json()
+        subscription_id = data.get("subscription_id")
+        
+        if not subscription_id:
+            return jsonify({"success": False, "error": "サブスクリプションIDが必要です"}), 400
+        
+        # セッショントークンからユーザーIDを取得
+        user_id = None
+        session_token = request.headers.get('Authorization')
+        if session_token and session_token.startswith('Bearer '):
+            token = session_token[7:]  # "Bearer "を除去
+            user_id = validate_session(token)
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "ログインが必要です"}), 401
+        
+        # Stripeでサブスクリプションをキャンセル
+        stripe.Subscription.modify(
+            subscription_id,
+            cancel_at_period_end=True  # 現在の期間終了時にキャンセル
+        )
+        
+        # データベースのサブスクリプションステータスを即座に更新
+        from models_postgres import get_session, Subscription
+        session = get_session()
+        try:
+            subscription = session.query(Subscription).filter_by(id=subscription_id).first()
+            if subscription:
+                subscription.status = "canceled"  # ステータスをキャンセル済みに更新
+                session.commit()
+                print(f"Subscription status updated to canceled: {subscription_id}")
+        except Exception as e:
+            print(f"Error updating subscription status: {e}")
+            session.rollback()
+        finally:
+            session.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "サブスクリプションの解約が完了しました。現在の期間終了時にキャンセルされます。"
+        }), 200
+        
+    except stripe.error.StripeError as e:
+        return jsonify({"success": False, "error": f"Stripeエラー: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": f"解約処理中にエラーが発生しました: {str(e)}"}), 500
 
 
 # ウェブフックエンドポイント

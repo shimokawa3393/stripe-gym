@@ -19,7 +19,7 @@ body {
     border-radius: 20px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     padding: 40px;
-    max-width: 1000px;
+    max-width: 1400px;
     width: 100%;
     text-align: center;
 }
@@ -47,11 +47,33 @@ body {
     margin: 0 15px 30px 15px;
 }
 
+.premium-card {
+    border: 3px solid #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+    position: relative;
+    transform: scale(1.05);
+}
+
+.premium-card::before {
+    content: "おすすめ";
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
 .plan-cards-container {
     display: flex;
-    gap: 20px;
+    gap: 30px;
     justify-content: center;
     flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .plan-title {
@@ -581,9 +603,24 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 15px;
+}
+
+.history-item-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
 }
 
 .history-item-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.history-item-details {
     flex: 1;
 }
 
@@ -591,6 +628,11 @@ body {
     font-weight: 600;
     color: #333;
     margin-bottom: 5px;
+}
+
+.history-item-status {
+    flex-shrink: 0;
+    margin-left: 10px;
 }
 
 .history-item-date {
@@ -620,6 +662,34 @@ body {
     color: #d32f2f;
 }
 
+.cancel-subscription-button {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.cancel-subscription-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 107, 107, 0.3);
+}
+
+.cancel-subscription-button:active {
+    transform: translateY(0);
+}
+
+.cancel-subscription-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .no-data {
     text-align: center;
     color: #999;
@@ -630,6 +700,24 @@ body {
 .home-button {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     color: white;
+}
+
+@media (min-width: 1200px) {
+    .container {
+        padding: 50px;
+    }
+    
+    .plan-cards-container {
+        gap: 40px;
+    }
+    
+    .plan-card {
+        padding: 40px;
+    }
+    
+    .premium-card {
+        transform: scale(1.08);
+    }
 }
 
 @media (max-width: 600px) {
@@ -647,6 +735,10 @@ body {
     
     .plan-card {
         margin: 0 0 20px 0;
+    }
+    
+    .premium-card {
+        transform: none;
     }
     
     .registration-form,
@@ -700,5 +792,35 @@ body {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
+    }
+    
+    .history-item-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .history-item-details {
+        width: 100%;
+    }
+    
+    .history-item-status {
+        align-self: flex-start;
+        margin-left: 0;
+        margin-top: 5px;
+    }
+    
+    .history-item-actions {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        gap: 15px;
+        margin-top: 10px;
+    }
+    
+    .cancel-subscription-button {
+        flex: 1;
+        max-width: 120px;
     }
 }

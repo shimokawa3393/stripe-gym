@@ -614,3 +614,16 @@ def get_user_from_session(session_token):
         return None
     
     return get_user_by_id(user_id)
+
+def get_plan_name_from_price_id(price_id):
+    """price_idからプラン名を取得"""
+    import os
+    premium_price_id = os.getenv("PREMIUM_PRICE_ID", os.getenv("PRICE_ID"))
+    standard_price_id = os.getenv("STANDARD_PRICE_ID")
+    
+    if price_id == premium_price_id:
+        return "プレミアムプラン"
+    elif price_id == standard_price_id:
+        return "スタンダードプラン"
+    else:
+        return "不明なプラン"

@@ -10,11 +10,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// サブスクリプション購入用のcheckout関数
+// サブスクリプション購入用のcheckout関数（プレミアムプラン）
 document.getElementById('subscription-button').addEventListener('click', async () => {
-    const button = document.getElementById('subscription-button');
-    const loading = document.getElementById('loading');
-    const error = document.getElementById('error');
+    await handleSubscription('premium', 'プレミアムプラン');
+});
+
+// サブスクリプション購入用のcheckout関数（スタンダードプラン）
+document.getElementById('standard-subscription-button').addEventListener('click', async () => {
+    await handleSubscription('standard', 'スタンダードプラン');
+});
+
+// 共通のサブスクリプション処理関数
+async function handleSubscription(planType, planName) {
+    const button = document.getElementById(planType === 'standard' ? 'standard-subscription-button' : 'subscription-button');
+    const loading = document.getElementById(planType === 'standard' ? 'loading-standard' : 'loading');
+    const error = document.getElementById(planType === 'standard' ? 'error-standard' : 'error');
     
     // UI状態を更新
     button.disabled = true;
@@ -38,7 +48,8 @@ document.getElementById('subscription-button').addEventListener('click', async (
             method: "POST",
             headers: headers,
             body: JSON.stringify({ 
-                price_id: window.AppConfig.stripe.priceId // 設定から価格IDを取得
+                plan_name: planName,
+                plan_type: planType
             })
         });
         console.log(response);
@@ -68,7 +79,7 @@ document.getElementById('subscription-button').addEventListener('click', async (
         button.textContent = '今すぐ始める';
         loading.style.display = 'none';
     }
-});
+}
 
 // プロテイン購入用のcheckout関数
 document.getElementById('checkout-button').addEventListener('click', async () => {
