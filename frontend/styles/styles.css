@@ -144,6 +144,13 @@ body {
     transform: none;
 }
 
+.active-plan-button {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%) !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3) !important;
+}
+
 .checkout-button {
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     color: white;

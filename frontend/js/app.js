@@ -22,6 +22,14 @@ document.getElementById('standard-subscription-button').addEventListener('click'
 
 // 共通のサブスクリプション処理関数
 async function handleSubscription(planType, planName) {
+    // ログインチェック
+    const sessionToken = localStorage.getItem('session_token');
+    if (!sessionToken) {
+        // 未ログインの場合はログイン画面に遷移
+        window.location.href = 'login.html';
+        return;
+    }
+    
     const button = document.getElementById(planType === 'standard' ? 'standard-subscription-button' : 'subscription-button');
     const loading = document.getElementById(planType === 'standard' ? 'loading-standard' : 'loading');
     const error = document.getElementById(planType === 'standard' ? 'error-standard' : 'error');
@@ -34,7 +42,6 @@ async function handleSubscription(planType, planName) {
     
     try {
         // セッショントークンを取得
-        const sessionToken = localStorage.getItem('session_token');
         const headers = { 
             "Content-Type": "application/json" 
         };
@@ -65,6 +72,10 @@ async function handleSubscription(planType, planName) {
             if (result.error) {
                 throw new Error(result.error.message);
             }
+        } else if (data.already_subscribed) {
+            // 既に契約している場合の警告
+            alert('⚠️ 注意\n\n' + data.error + '\n\nマイページで現在の契約状況をご確認ください。');
+            throw new Error(data.error);
         } else {
             throw new Error(data.error || 'セッションの作成に失敗しました');
         }
@@ -83,6 +94,14 @@ async function handleSubscription(planType, planName) {
 
 // プロテイン購入用のcheckout関数
 document.getElementById('checkout-button').addEventListener('click', async () => {
+    // ログインチェック
+    const sessionToken = localStorage.getItem('session_token');
+    if (!sessionToken) {
+        // 未ログインの場合はログイン画面に遷移
+        window.location.href = 'login.html';
+        return;
+    }
+    
     const button = document.getElementById('checkout-button');
     const loading = document.getElementById('loading-product');
     const error = document.getElementById('error-product');
@@ -95,7 +114,6 @@ document.getElementById('checkout-button').addEventListener('click', async () =>
     
     try {
         // セッショントークンを取得
-        const sessionToken = localStorage.getItem('session_token');
         const headers = { 
             "Content-Type": "application/json" 
         };

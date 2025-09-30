@@ -34,6 +34,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(20))
     birthdate = Column(Date)
+    stripe_customer_id = Column(String(255), unique=True)  # Stripe Customer ID
     terms_accepted = Column(Boolean, default=False)
     privacy_accepted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -627,3 +628,48 @@ def get_plan_name_from_price_id(price_id):
         return "スタンダードプラン"
     else:
         return "不明なプラン"
+
+
+def upsert_stripe_customer(user):
+    """ユーザーのStripe Customerを作成または取得"""
+    import stripe
+    
+    # 既にStripe Customer IDが存在する場合は返す
+    if user.stripe_customer_id:
+        try:
+            # Stripeで有効なCustomerか確認
+            customer = stripe.Customer.retrieve(user.stripe_customer_id)
+            if not customer.get('deleted'):
+                return user.stripe_customer_id
+        except stripe.error.StripeError:
+            # Customer IDが無効な場合は新規作成
+            pass
+    
+    # 新しいStripe Customerを作成
+    try:
+        customer = stripe.Customer.create(
+            email=user.email,
+            name=user.name,
+            metadata={
+                'user_id': str(user.id)
+            }
+        )
+        
+        # DBにCustomer IDを保存
+        session = get_session()
+        try:
+            db_user = session.query(User).filter_by(id=user.id).first()
+            if db_user:
+                db_user.stripe_customer_id = customer.id
+                session.commit()
+                logger.info(f"Stripe Customer created and saved: {customer.id} for user {user.id}")
+        except Exception as e:
+            logger.error(f"Error saving stripe_customer_id: {e}")
+            session.rollback()
+        finally:
+            session.close()
+        
+        return customer.id
+    except stripe.error.StripeError as e:
+        logger.error(f"Error creating Stripe Customer: {e}")
+        raise e

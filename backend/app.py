@@ -1,12 +1,15 @@
 import os
 import stripe
+import logging
 from dotenv import load_dotenv
 from flask import Flask, redirect, jsonify, request
 from flask_cors import CORS
-from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session, get_user_by_id, get_user_purchase_history, get_user_subscriptions, get_plan_name_from_price_id
+from models_postgres import init_db, get_ledger, get_subscriptions, create_user, hash_password, authenticate_user, create_session, logout_user, validate_session, get_user_by_id, get_user_purchase_history, get_user_subscriptions, get_plan_name_from_price_id, upsert_stripe_customer
 from handlers import handle_checkout_completed, handle_invoice_paid, handle_invoice_payment_failed, handle_subscription_created, handle_subscription_updated
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -32,21 +35,33 @@ BASE_URL = os.getenv("BASE_URL")
 init_db()
 
 
-# オリジナルプロテイン購入ページ
-# API エンドポイント（フロントエンド用）
+# オリジナルプロテイン購入API
 @app.route("/api/checkout", methods=["POST"])
 def checkout_api():
     # ドメインURLを組み立て（Dockerの場合ホスト名に注意。ローカルテスト用にlocalhost使用）
     try:
         # セッショントークンからユーザーIDを取得
-        user_id = None
         session_token = request.headers.get('Authorization')
-        if session_token and session_token.startswith('Bearer '):
-            token = session_token[7:]  # "Bearer "を除去
-            user_id = validate_session(token)
+        if not session_token or not session_token.startswith('Bearer '):
+            return jsonify({"error": "ログインが必要です"}), 401
+        
+        token = session_token[7:]  # "Bearer "を除去
+        user_id = validate_session(token)
+        
+        if not user_id:
+            return jsonify({"error": "無効なセッションです。再度ログインしてください"}), 401
+        
+        # ユーザー情報を取得
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({"error": "ユーザーが見つかりません"}), 404
+        
+        # Stripe Customerを取得または作成
+        stripe_customer_id = upsert_stripe_customer(user)
         
         # StripeのCheckout Sessionを作成
         checkout_session = stripe.checkout.Session.create(
+            customer = stripe_customer_id,  # Customer IDを指定
             success_url = f"{BASE_URL}/success-checkout?session_id={{CHECKOUT_SESSION_ID}}",    # 支払い成功後に戻るURL
             cancel_url  = f"{BASE_URL}/cancel",     # 支払いキャンセル時に戻るURL
             payment_method_types = ["card"],       # 使用する支払方法
@@ -62,7 +77,7 @@ def checkout_api():
                 }
             ],
             metadata={
-                'user_id': str(user_id) if user_id else '',
+                'user_id': str(user_id),
                 'product_name': 'オリジナルプロテイン'
             }
         )
@@ -71,8 +86,7 @@ def checkout_api():
         return jsonify({"error": str(e)}), 500
 
 
-# サブスクリプション課金ページ
-# API エンドポイント（フロントエンド用）
+# サブスクリプション課金API
 @app.route("/api/subscription", methods=["POST"])
 def subscription_api():
     try:
@@ -82,11 +96,52 @@ def subscription_api():
         plan_type = data.get("plan_type", "premium")  # standard または premium
         
         # セッショントークンからユーザーIDを取得
-        user_id = None
         session_token = request.headers.get('Authorization')
-        if session_token and session_token.startswith('Bearer '):
-            token = session_token[7:]  # "Bearer "を除去
-            user_id = validate_session(token)
+        if not session_token or not session_token.startswith('Bearer '):
+            return jsonify({"error": "ログインが必要です"}), 401
+        
+        token = session_token[7:]  # "Bearer "を除去
+        user_id = validate_session(token)
+        
+        if not user_id:
+            return jsonify({"error": "無効なセッションです。再度ログインしてください"}), 401
+        
+        # ユーザーが既に同じプランに契約していないかチェック
+        from models_postgres import get_session, Subscription
+        session = get_session()
+        try:
+            # プランタイプに応じて価格IDを決定
+            if plan_type == "standard":
+                price_id = os.getenv("STANDARD_PRICE_ID", PRICE_ID)
+                product_name = "スタンダードプラン"
+            else:
+                price_id = os.getenv("PREMIUM_PRICE_ID", PRICE_ID)
+                product_name = "プレミアムプラン"
+            
+            # アクティブなサブスクリプションをチェック
+            active_subscription = session.query(Subscription).filter_by(
+                user_id=user_id,
+                price_id=price_id,
+                status='active'
+            ).first()
+            
+            if active_subscription:
+                return jsonify({
+                    "error": f"既に{product_name}に契約しています。同じプランに複数契約することはできません。",
+                    "already_subscribed": True
+                }), 400
+        except Exception as e:
+            print(f"Error checking existing subscription: {e}")
+        finally:
+            session.close()
+        
+        # ユーザー情報を取得
+        user = get_user_by_id(user_id)
+        if not user:
+            return jsonify({"error": "ユーザーが見つかりません"}), 404
+        
+        # Stripe Customerを取得または作成
+        stripe_customer_id = upsert_stripe_customer(user)
         
         # プランタイプに応じて価格IDを決定
         if plan_type == "standard":
@@ -99,6 +154,7 @@ def subscription_api():
             product_name = "プレミアムプラン"
         
         subscription_session = stripe.checkout.Session.create(
+            customer = stripe_customer_id,  # Customer IDを指定
             success_url=f"{BASE_URL}/success-subscription?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{BASE_URL}/cancel",
             mode="subscription",
@@ -106,7 +162,7 @@ def subscription_api():
             line_items=[{"price": price_id, "quantity": 1}],
             allow_promotion_codes=True,
             metadata={
-                'user_id': str(user_id) if user_id else '',
+                'user_id': str(user_id),
                 'product_name': product_name,
                 'plan_type': plan_type
             }
@@ -154,6 +210,14 @@ def register_api():
             terms_accepted=terms_accepted,
             privacy_accepted=privacy_accepted
         )
+        
+        # Stripe Customerを作成
+        try:
+            stripe_customer_id = upsert_stripe_customer(user)
+            logger.info(f"Stripe Customer created for user {user.id}: {stripe_customer_id}")
+        except Exception as e:
+            logger.error(f"Failed to create Stripe Customer: {e}")
+            # Customerの作成に失敗してもユーザー登録は継続
         
         # セッションを作成
         session_token = create_session(user.id)
@@ -329,6 +393,60 @@ def user_purchase_history_api():
             ]
         }), 200
         
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ユーザーのアクティブサブスクリプション取得API
+@app.route("/api/user-active-subscriptions", methods=["POST"])
+def user_active_subscriptions_api():
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "ユーザーIDが必要です"}), 400
+        
+        from models_postgres import get_session, Subscription
+        session = get_session()
+        try:
+            # アクティブなサブスクリプションを取得
+            active_subscriptions = session.query(Subscription).filter_by(
+                user_id=user_id,
+                status='active'
+            ).all()
+            
+            premium_price_id = os.getenv("PREMIUM_PRICE_ID", PRICE_ID)
+            standard_price_id = os.getenv("STANDARD_PRICE_ID")
+            
+            result = {
+                "has_premium": False,
+                "has_standard": False,
+                "subscriptions": []
+            }
+            
+            for sub in active_subscriptions:
+                if sub.price_id == premium_price_id:
+                    result["has_premium"] = True
+                elif sub.price_id == standard_price_id:
+                    result["has_standard"] = True
+                
+                result["subscriptions"].append({
+                    "id": sub.id,
+                    "price_id": sub.price_id,
+                    "plan_name": get_plan_name_from_price_id(sub.price_id),
+                    "status": sub.status
+                })
+            
+            return jsonify({
+                "success": True,
+                **result
+            }), 200
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+        finally:
+            session.close()
+            
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

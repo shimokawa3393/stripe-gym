@@ -123,6 +123,72 @@
     <script src="../js/config.js?v=20241220"></script>
     <script src="https://js.stripe.com/v3/"></script>
     <script src="../js/app.js?v=20241220" defer></script>
+    
+    <script>
+        // ページ読み込み時にアクティブサブスクリプションをチェック
+        document.addEventListener('DOMContentLoaded', function() {
+            checkActiveSubscriptions();
+        });
+
+        // アクティブサブスクリプションをチェックしてUIを更新
+        function checkActiveSubscriptions() {
+            const sessionToken = localStorage.getItem('session_token');
+            
+            if (!sessionToken) {
+                return; // 未ログインの場合は何もしない
+            }
+
+            // セッション検証
+            fetch(window.AppConfig.api.baseUrl + '/api/verify-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_token: sessionToken })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // アクティブサブスクリプションを取得
+                    fetch(window.AppConfig.api.baseUrl + '/api/user-active-subscriptions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: data.user_id })
+                    })
+                    .then(response => response.json())
+                    .then(subData => {
+                        if (subData.success) {
+                            updatePlanButtons(subData);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('アクティブサブスクリプション取得エラー:', error);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('セッション確認エラー:', error);
+            });
+        }
+
+        // プランボタンの状態を更新
+        function updatePlanButtons(subscriptionData) {
+            const standardButton = document.getElementById('standard-subscription-button');
+            const premiumButton = document.getElementById('subscription-button');
+
+            // スタンダードプランがアクティブな場合
+            if (subscriptionData.has_standard) {
+                standardButton.textContent = '利用中（アクティブ）';
+                standardButton.disabled = true;
+                standardButton.classList.add('active-plan-button');
+            }
+
+            // プレミアムプランがアクティブな場合
+            if (subscriptionData.has_premium) {
+                premiumButton.textContent = '利用中（アクティブ）';
+                premiumButton.disabled = true;
+                premiumButton.classList.add('active-plan-button');
+            }
+        }
+    </script>
 </body>
 
 </html>
