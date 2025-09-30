@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>購入完了 - Stripe Gym</title>
-    <link rel="stylesheet" href="../styles/styles.css">
+    <link rel="stylesheet" href="../styles/common.css?v=20241220">
+    <link rel="stylesheet" href="../styles/success.css?v=20241220">
 </head>
 <body>
     <div class="container">
         <div class="success-message">
             <div class="success-icon">✅</div>
             <h1>購入が完了しました！</h1>
-            <p class="success-text">オリジナルプロテインをご購入いただき、ありがとうございます。</p>
+            <p class="success-text">
+                <span id="product-name-display">オリジナルプロテイン</span>をご購入いただき、ありがとうございます。
+            </p>
             <p class="success-details">お支払いが正常に処理されました。商品は近日中にお届けいたします！</p>
             
             <div class="success-actions">
@@ -21,15 +24,7 @@
         </div>
     </div>
 
-    <script>
-        // URLパラメータからセッションIDを取得
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('session_id');
-        
-        if (sessionId) {
-            console.log('決済セッションID:', sessionId);
-            // 必要に応じて、セッションIDを使って追加の処理を行う
-        }
-    </script>
+    <script src="../js/config.js?v=20241220"></script>
+    <script src="../js/checkout.js?v=20240930" defer></script>
 </body>
 </html>

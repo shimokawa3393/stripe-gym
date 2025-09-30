@@ -1,0 +1,82 @@
+/* 成功・キャンセル画面専用スタイル */
+
+.success-message, .cancel-message {
+    text-align: center;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.success-icon, .cancel-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.success-message h1 {
+    color: #27ae60;
+    margin-bottom: 20px;
+}
+
+.cancel-message h1 {
+    color: #e74c3c;
+    margin-bottom: 20px;
+}
+
+.success-text, .cancel-text {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.success-details, .cancel-details {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.success-actions, .cancel-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.success-actions button, .cancel-actions button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.success-actions button:hover, .cancel-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(102, 126, 234, 0.3);
+}
+
+.cancel-actions button:first-child {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.cancel-actions button:last-child {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+@media (max-width: 600px) {
+    .success-actions, .cancel-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .success-actions button, .cancel-actions button {
+        width: 100%;
+        max-width: 300px;
+    }
+}

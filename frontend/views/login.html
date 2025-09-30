@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ログイン - Stripe Gym</title>
-    <link rel="stylesheet" href="../styles/styles.css?v=20241220">
+    <link rel="stylesheet" href="../styles/common.css?v=20241220">
+    <link rel="stylesheet" href="../styles/auth.css?v=20241220">
 </head>
 <body>
     <div class="container">
@@ -50,62 +51,7 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const button = document.querySelector('.login-button');
-            const loading = document.getElementById('loading');
-            const error = document.getElementById('error');
-            
-            // UI状態を更新
-            button.disabled = true;
-            button.textContent = '処理中...';
-            loading.style.display = 'block';
-            error.style.display = 'none';
-            
-            try {
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData);
-                
-                // API呼び出し
-                const response = await fetch(window.AppConfig.api.baseUrl + '/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // セッショントークンとユーザー情報を保存
-                    localStorage.setItem('session_token', result.session_token);
-                    localStorage.setItem('user_id', result.user_id);
-                    localStorage.setItem('user_name', result.user_name);
-                    localStorage.setItem('user_email', result.user_email);
-                    
-                    alert('ログインが完了しました！');
-                    window.location.href = 'home.html';
-                } else {
-                    error.textContent = result.error || 'ログインに失敗しました';
-                    error.style.display = 'block';
-                }
-                
-            } catch (err) {
-                console.error('エラー:', err);
-                error.textContent = 'ログイン処理中にエラーが発生しました';
-                error.style.display = 'block';
-                
-                // UI状態をリセット
-                button.disabled = false;
-                button.textContent = 'ログイン';
-                loading.style.display = 'none';
-            }
-        });
-    </script>
-
     <script src="../js/config.js?v=20241220"></script>
+    <script src="../js/user.js?v=20240930" defer></script>
 </body>
 </html>

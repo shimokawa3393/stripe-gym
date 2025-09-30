@@ -1,0 +1,216 @@
+/* ホーム画面専用スタイル */
+
+.plan-card {
+    background: #f8f9ff;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    border: 2px solid #e8ecff;
+    flex: 1;
+    margin: 0 15px 30px 15px;
+}
+
+.premium-card {
+    border: 3px solid #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+    position: relative;
+    transform: scale(1.05);
+}
+
+.premium-card::before {
+    content: "おすすめ";
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.plan-cards-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.plan-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.plan-price {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.plan-period {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.features {
+    list-style: none;
+    margin-bottom: 30px;
+}
+
+.features li {
+    padding: 8px 0;
+    color: #555;
+    position: relative;
+    padding-left: 25px;
+}
+
+.features li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.subscription-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.subscription-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.subscription-button:active {
+    transform: translateY(0);
+}
+
+.subscription-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.active-plan-button {
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%) !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3) !important;
+}
+
+.schedule-change-button {
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.schedule-change-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255, 152, 0, 0.3);
+}
+
+.schedule-change-button:active {
+    transform: translateY(0);
+}
+
+.schedule-change-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.scheduled-plan-button {
+    background: linear-gradient(135deg, #9E9E9E 0%, #616161 100%) !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    box-shadow: 0 4px 8px rgba(158, 158, 158, 0.3) !important;
+}
+
+.checkout-button {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.checkout-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(240, 147, 251, 0.3);
+}
+
+.checkout-button:active {
+    transform: translateY(0);
+}
+
+.checkout-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+@media (min-width: 1200px) {
+    .container {
+        padding: 50px;
+    }
+    
+    .plan-cards-container {
+        gap: 40px;
+    }
+    
+    .plan-card {
+        padding: 40px;
+    }
+    
+    .premium-card {
+        transform: scale(1.08);
+    }
+}
+
+@media (max-width: 600px) {
+    .plan-price {
+        font-size: 2.5rem;
+    }
+    
+    .plan-cards-container {
+        flex-direction: column;
+    }
+    
+    .plan-card {
+        margin: 0 0 20px 0;
+    }
+    
+    .premium-card {
+        transform: none;
+    }
+}

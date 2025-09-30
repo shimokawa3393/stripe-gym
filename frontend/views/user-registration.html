@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>会員登録 - Stripe Gym</title>
-    <link rel="stylesheet" href="../styles/styles.css?v=20241220">
+    <link rel="stylesheet" href="../styles/common.css?v=20241220">
+    <link rel="stylesheet" href="../styles/auth.css?v=20241220">
 </head>
 
 <body>
@@ -78,75 +79,8 @@
         </div>
     </div>
 
-    <script>
-        document.getElementById('registration-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const button = document.querySelector('.registration-button');
-            const loading = document.getElementById('loading');
-            const error = document.getElementById('error');
-
-            // UI状態を更新
-            button.disabled = true;
-            button.textContent = '処理中...';
-            loading.style.display = 'block';
-            error.style.display = 'none';
-
-            // パスワード確認
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
-
-            if (password !== confirmPassword) {
-                error.textContent = 'パスワードが一致しません';
-                error.style.display = 'block';
-                button.disabled = false;
-                button.textContent = '会員登録';
-                loading.style.display = 'none';
-                return;
-            }
-
-            try {
-                const formData = new FormData(e.target);
-                const data = Object.fromEntries(formData);
-
-                // チェックボックスの値をBooleanに変換
-                data.terms = data.terms === 'on';
-                data.privacy = data.privacy === 'on';
-
-                // API呼び出し
-                const response = await fetch(window.AppConfig.api.baseUrl + '/api/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    alert('会員登録が完了しました！');
-                    window.location.href = 'login.html';
-                } else {
-                    error.textContent = result.error || '登録に失敗しました';
-                    error.style.display = 'block';
-                }
-
-            } catch (err) {
-                console.error('エラー:', err);
-                error.textContent = '登録処理中にエラーが発生しました';
-                error.style.display = 'block';
-
-                // UI状態をリセット
-                button.disabled = false;
-                button.textContent = '会員登録';
-                loading.style.display = 'none';
-            }
-        });
-    </script>
-
     <script src="../js/config.js?v=20241220"></script>
-    <script src="../js/app.js?v=20241220" defer></script>
+    <script src="../js/user.js?v=20240930" defer></script>
 
 </body>
 

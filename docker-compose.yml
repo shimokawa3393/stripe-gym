@@ -20,6 +20,8 @@ services:
     build: ./backend
     ports:
       - "5001:5000"
+    env_file:
+      - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://stripegym:stripegym@db:5432/stripegym
     depends_on:

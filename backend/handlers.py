@@ -1,4 +1,6 @@
-from models_postgres import record_ledger, record_invoice, upsert_subscription
+import stripe
+from repositories import record_ledger, record_invoice, upsert_subscription, get_session
+from models import Subscription
 
 # Webhookイベントハンドラー関数
 def handle_checkout_completed(webhook_object):
@@ -32,7 +34,6 @@ def handle_checkout_completed(webhook_object):
         subscription_id = webhook_object.get("subscription")
         if subscription_id and user_id:
             # サブスクリプションのuser_idを更新
-            from models_postgres import get_session, Subscription
             session = get_session()
             try:
                 subscription = session.query(Subscription).filter_by(id=subscription_id).first()
@@ -40,6 +41,31 @@ def handle_checkout_completed(webhook_object):
                     subscription.user_id = user_id
                     session.commit()
                     print(f"Updated subscription user_id: {subscription_id} -> {user_id}")
+                    
+                    # 同じユーザーの他のアクティブなサブスクリプションを自動解約（プラン変更機能）
+                    other_active_subs = session.query(Subscription).filter(
+                        Subscription.user_id == user_id,
+                        Subscription.id != subscription_id,
+                        Subscription.status == 'active'
+                    ).all()
+                    
+                    if other_active_subs:
+                        print(f"Found {len(other_active_subs)} other active subscriptions for user {user_id}")
+                        for old_sub in other_active_subs:
+                            try:
+                                # Stripeで期間終了時に解約設定（即座に削除しない）
+                                stripe.Subscription.modify(
+                                    old_sub.id,
+                                    cancel_at_period_end=True
+                                )
+                                # DBの解約予定フラグを更新（statusはactiveのまま）
+                                old_sub.cancel_at_period_end = True
+                                print(f"Auto-scheduled cancellation for old subscription: {old_sub.id}")
+                            except stripe.error.StripeError as e:
+                                print(f"Error scheduling cancellation for old subscription {old_sub.id}: {e}")
+                        session.commit()
+                        print(f"Completed auto-cancellation scheduling for user {user_id}")
+                    
             except Exception as e:
                 print(f"Error updating subscription user_id: {e}")
                 session.rollback()
@@ -75,12 +101,43 @@ def handle_subscription_created(webhook_object):
     # サブスクリプションを作成/更新
     subscription = upsert_subscription(webhook_object, user_id=user_id)
     
+    # user_idが設定されている場合、同じユーザーの他のアクティブなサブスクリプションを自動解約
+    if user_id:
+        session = get_session()
+        try:
+            other_active_subs = session.query(Subscription).filter(
+                Subscription.user_id == user_id,
+                Subscription.id != webhook_object.get("id"),
+                Subscription.status == 'active'
+            ).all()
+            
+            if other_active_subs:
+                print(f"Found {len(other_active_subs)} other active subscriptions for user {user_id}")
+                for old_sub in other_active_subs:
+                    try:
+                        # Stripeで期間終了時に解約設定（即座に削除しない）
+                        stripe.Subscription.modify(
+                            old_sub.id,
+                            cancel_at_period_end=True
+                        )
+                        # DBの解約予定フラグを更新（statusはactiveのまま）
+                        old_sub.cancel_at_period_end = True
+                        print(f"Auto-scheduled cancellation for old subscription: {old_sub.id}")
+                    except stripe.error.StripeError as e:
+                        print(f"Error scheduling cancellation for old subscription {old_sub.id}: {e}")
+                session.commit()
+                print(f"Completed auto-cancellation scheduling for user {user_id}")
+        except Exception as e:
+            print(f"Error in auto-cancellation: {e}")
+            session.rollback()
+        finally:
+            session.close()
+    
     # user_idがNoneの場合、checkout.session.completedのメタデータから取得を試行
     if not user_id and subscription:
         print(f"User ID not found in subscription metadata, trying to find from checkout session...")
         # サブスクリプションIDからcheckout sessionを検索してuser_idを取得
         try:
-            import stripe
             # サブスクリプションのcustomer_idを取得
             customer_id = webhook_object.get("customer")
             if customer_id:
@@ -96,7 +153,6 @@ def handle_subscription_created(webhook_object):
                         if session_user_id and session_user_id != "":
                             user_id = int(session_user_id)
                             # サブスクリプションのuser_idを更新
-                            from models_postgres import get_session, Subscription
                             db_session = get_session()
                             try:
                                 db_subscription = db_session.query(Subscription).filter_by(id=webhook_object.get("id")).first()

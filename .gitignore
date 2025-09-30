@@ -1,3 +1,4 @@
+# Environment variables (exclude templates)
 .env
 .env.local
 .env.development.local
@@ -6,6 +7,10 @@
 .env.development
 .env.test
 .env.production
+
+# Include .env.example files (templates for other developers)
+!.env.example
+!**/.env.example
 
 
 .vscode/
