@@ -9,7 +9,10 @@ from handlers import (
     handle_invoice_paid,
     handle_invoice_payment_failed,
     handle_subscription_created,
-    handle_subscription_updated
+    handle_subscription_updated,
+    handle_subscription_deleted,
+    is_event_processed,
+    mark_event_processed
 )
 
 webhook_bp = Blueprint('webhook', __name__)
@@ -37,7 +40,13 @@ def stripe_webhook():
         return jsonify({'error': 'webhook error'}), 400
 
     event_type = event.get("type")
+    event_id = event.get("id")
     webhook_object = event["data"]["object"]
+
+    # 重複防止チェック
+    if is_event_processed(event_id):
+        print(f"⚠ Event already processed: {event_id} ({event_type})")
+        return "", 200
 
     # イベントタイプによって処理を分岐
     if event_type == "checkout.session.completed":
@@ -50,9 +59,14 @@ def stripe_webhook():
         handle_subscription_created(webhook_object)
     elif event_type == "customer.subscription.updated":
         handle_subscription_updated(webhook_object)
+    elif event_type == "customer.subscription.deleted":
+        handle_subscription_deleted(webhook_object)
     else:
         print(f"⚠ Unhandled event type: {event_type}")
         return "", 200
+
+    # イベントを処理済みとしてマーク
+    mark_event_processed(event_id, event_type)
         
     # 素早く成功レスポンスを返す
     return "", 200

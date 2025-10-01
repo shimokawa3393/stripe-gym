@@ -59,6 +59,17 @@
             <div id="active-subscription" class="subscription-card">
                 <div class="no-data">現在アクティブなサブスクリプションはありません</div>
             </div>
+            
+            <!-- Stripe Customer Portal ボタン -->
+            <div id="billing-portal-section" class="billing-portal-section" style="display: none;">
+                <h3>支払い管理</h3>
+                <p class="billing-portal-description">
+                    Stripeの管理画面で支払い方法の更新、請求書の確認、プラン変更などを行えます。
+                </p>
+                <button id="billing-portal-button" class="billing-portal-button" onclick="startBillingPortal()">
+                    💳 支払い管理（Stripe）
+                </button>
+            </div>
         </div>
 
         <!-- 購入履歴 -->

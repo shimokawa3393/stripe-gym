@@ -1,6 +1,39 @@
 import stripe
 from repositories import record_ledger, record_invoice, upsert_subscription, get_session
-from models import Subscription
+from models import Subscription, ProcessedEvent
+import logging
+
+logger = logging.getLogger(__name__)
+
+# 重複防止機能
+def is_event_processed(event_id):
+    """イベントが既に処理済みかチェック"""
+    session = get_session()
+    try:
+        processed_event = session.query(ProcessedEvent).filter_by(id=event_id).first()
+        return processed_event is not None
+    except Exception as e:
+        logger.error(f"Error checking processed event {event_id}: {e}")
+        return False
+    finally:
+        session.close()
+
+def mark_event_processed(event_id, event_type):
+    """イベントを処理済みとしてマーク"""
+    session = get_session()
+    try:
+        processed_event = ProcessedEvent(
+            id=event_id,
+            event_type=event_type
+        )
+        session.add(processed_event)
+        session.commit()
+        logger.info(f"Marked event as processed: {event_id} ({event_type})")
+    except Exception as e:
+        logger.error(f"Error marking event as processed {event_id}: {e}")
+        session.rollback()
+    finally:
+        session.close()
 
 # Webhookイベントハンドラー関数
 def handle_checkout_completed(webhook_object):
@@ -193,4 +226,28 @@ def handle_subscription_updated(webhook_object):
 def handle_invoice_payment_failed(webhook_object):
     """請求書支払い失敗時の処 理"""
     print(f"❌ Invoice payment failed: {webhook_object.get('id')}")
+    return "", 200
+
+
+def handle_subscription_deleted(webhook_object):
+    """サブスクリプション削除時の処理"""
+    subscription_id = webhook_object.get('id')
+    logger.info(f"✅ Subscription deleted: {subscription_id}")
+    
+    # サブスクリプションのステータスを更新
+    session = get_session()
+    try:
+        subscription = session.query(Subscription).filter_by(id=subscription_id).first()
+        if subscription:
+            subscription.status = 'canceled'
+            session.commit()
+            logger.info(f"Updated subscription status to canceled: {subscription_id}")
+        else:
+            logger.warning(f"Subscription not found in database: {subscription_id}")
+    except Exception as e:
+        logger.error(f"Error updating deleted subscription {subscription_id}: {e}")
+        session.rollback()
+    finally:
+        session.close()
+    
     return "", 200

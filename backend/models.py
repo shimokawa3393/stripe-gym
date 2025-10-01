@@ -87,3 +87,12 @@ class UserSession(Base):
     
     # リレーション
     user = relationship("User", backref="sessions")
+
+
+# Webhookイベント処理済み管理用のテーブル
+class ProcessedEvent(Base):
+    __tablename__ = 'processed_events'
+    
+    id = Column(String, primary_key=True)  # Stripe event ID
+    processed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    event_type = Column(String(100))  # イベントタイプ（例：customer.subscription.updated）

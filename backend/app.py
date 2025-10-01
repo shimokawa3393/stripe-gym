@@ -8,6 +8,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from repositories import init_db
 from routes import auth_bp, user_bp, payment_bp, webhook_bp
+from routes.billing_portal_routes import billing_bp
 
 load_dotenv()
 
@@ -34,6 +35,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(payment_bp)
 app.register_blueprint(webhook_bp)
+app.register_blueprint(billing_bp)
 
 
 # ヘルスチェックエンドポイント

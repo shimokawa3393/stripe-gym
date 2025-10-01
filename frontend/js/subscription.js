@@ -85,12 +85,18 @@ function loadSubscriptions(userId) {
 // アクティブサブスクリプションを表示
 function displayActiveSubscription(subscriptions) {
     const activeContainer = document.getElementById('active-subscription');
+    const billingPortalSection = document.getElementById('billing-portal-section');
+    
     if (!activeContainer) return;
     
     if (subscriptions && subscriptions.length > 0) {
         const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active');
         
         if (activeSubscriptions.length > 0) {
+            // アクティブなサブスクリプションがある場合、支払い管理ボタンを表示
+            if (billingPortalSection) {
+                billingPortalSection.style.display = 'block';
+            }
             const html = activeSubscriptions.map(activeSubscription => {
                 const periodEnd = activeSubscription.current_period_end 
                     ? new Date(activeSubscription.current_period_end * 1000).toLocaleDateString('ja-JP')
@@ -144,9 +150,17 @@ function displayActiveSubscription(subscriptions) {
             activeContainer.innerHTML = html;
         } else {
             activeContainer.innerHTML = '<div class="no-data">現在アクティブなサブスクリプションはありません</div>';
+            // アクティブなサブスクリプションがない場合、支払い管理ボタンを非表示
+            if (billingPortalSection) {
+                billingPortalSection.style.display = 'none';
+            }
         }
     } else {
         activeContainer.innerHTML = '<div class="no-data">現在アクティブなサブスクリプションはありません</div>';
+        // サブスクリプションがない場合、支払い管理ボタンを非表示
+        if (billingPortalSection) {
+            billingPortalSection.style.display = 'none';
+        }
     }
 }
 
@@ -295,5 +309,53 @@ function cancelSubscription(subscriptionId) {
         alert('解約処理中にエラーが発生しました');
         cancelButton.disabled = false;
         cancelButton.textContent = originalText;
+    });
+}
+
+// Stripe Customer Portal開始処理
+function startBillingPortal() {
+    const sessionToken = localStorage.getItem('session_token');
+    const userId = localStorage.getItem('user_id');
+    
+    if (!sessionToken || !userId) {
+        alert('ログインが必要です');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    const button = document.getElementById('billing-portal-button');
+    if (button) {
+        button.disabled = true;
+        button.textContent = '処理中...';
+    }
+    
+    fetch(window.AppConfig.api.baseUrl + '/api/billing-portal/start', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ user_id: parseInt(userId) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.url) {
+            // Stripe Customer Portalにリダイレクト
+            window.location.href = data.url;
+        } else {
+            alert(data.error || '支払い管理画面の起動に失敗しました');
+            if (button) {
+                button.disabled = false;
+                button.textContent = '💳 支払い管理（Stripe）';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('支払い管理画面起動エラー:', error);
+        alert('支払い管理画面の起動中にエラーが発生しました');
+        if (button) {
+            button.disabled = false;
+            button.textContent = '💳 支払い管理（Stripe）';
+        }
     });
 }
