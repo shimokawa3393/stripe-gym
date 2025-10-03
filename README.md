@@ -402,6 +402,7 @@ curl http://localhost:8080/health/internal
 - `StripeGym-COMPLETE-GUIDE.md`: **完全統合学習ガイド**（Day0-15全カリキュラム + 詳細手順 + トラブルシュート + 運用ガイド）
 - `DEPLOYMENT.md`: デプロイメントガイド
 - `env.production.example`: 本番環境設定テンプレート
+- `.github/workflows/`: **⚠️ GitHub Actions テンプレート**（学習用設定 - 実際の環境では調整が必要）
 
 ### 学習リソース
 - Stripe API Documentation: https://stripe.com/docs/api

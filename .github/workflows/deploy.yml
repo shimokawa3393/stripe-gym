@@ -1,4 +1,9 @@
-name: Deploy to Production
+# 🚀 TEMPLATE: Production Deployment Pipeline
+# 📚 This is a learning template demonstrating automated deployment workflow
+# ⚠️  This template may fail - configure actual deployment targets as needed
+# 🔧 Modify: deployment targets, environment secrets, deployment providers
+
+name: Deploy to Production (Learning Template)
 
 on:
   push:
