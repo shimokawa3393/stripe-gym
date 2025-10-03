@@ -59,13 +59,13 @@ jobs:
     
     - name: Start Docker services
       run: |
-        docker-compose up -d db
+        docker compose up -d db
         sleep 10
     
     - name: Run database migrations
       run: |
         cd backend
-        docker-compose exec -T app alembic upgrade head
+        docker compose exec -T app alembic upgrade head
       env:
         DATABASE_URL: postgresql://stripegym:password@localhost:5432/stripegym_test
     

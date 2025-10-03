@@ -14,7 +14,8 @@ jobs:
       postgres:
         image: postgres:13
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: stripegym
+          POSTGRES_USER: stripegym
           POSTGRES_DB: stripegym_test
         options: >-
           --health-cmd pg_isready
@@ -43,53 +44,54 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y docker.io docker-compose
+        sudo apt-get install -y docker.io postgresql-client
     
-    - name: Start Docker services
+    - name: Check Docker availability
       run: |
-        cd /home/runner/work/stripe-gym/stripe-gym
-        docker-compose up -d db
-        sleep 10  # Wait for database to be ready
+        docker --version
     
     - name: Install Python dependencies
       run: |
-        cd /home/runner/work/stripe-gym/stripe-gym/backend
+        cd ./backend
         pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-test.txt
     
     - name: Wait for database
       run: |
-        docker-compose exec -T db pg_isready -U stripegym
-      timeout: 30s
+        pg_isready -h localhost -p 5432 -U stripegym
+      timeout-minutes: 1
     
     - name: Run database migrations
       run: |
-        cd /home/runner/work/stripe-gym/stripe-gym/backend
-        docker-compose exec -T app alembic upgrade head
+        cd ./backend
+        alembic upgrade head
       env:
-        DATABASE_URL: postgresql://stripegym:password@localhost:5432/stripegym_test
+        DATABASE_URL: postgresql://stripegym:stripegym@localhost:5432/stripegym_test
     
     - name: Run basic tests
       run: |
-        cd /home/runner/work/stripe-gym/stripe-gym/backend
+        cd ./backend
         python -m pytest tests/test_hello.py tests/test_simple_api.py tests/test_basic_api.py --cov=app --cov-report=xml --cov-report=term-missing
       env:
-        DATABASE_URL: postgresql://stripegym:password@localhost:5432/stripegym_test
+        DATABASE_URL: postgresql://stripegym:stripegym@localhost:5432/stripegym_test
         STRIPE_SECRET_KEY: sk_test_dummy
+        STRIPE_PUBLISHABLE_KEY: pk_test_dummy
         STRIPE_WEBHOOK_SECRET: whsec_test_dummy
+        FRONTEND_URL: http://localhost:8080
+        FLASK_ENV: testing
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         file: ./backend/coverage.xml
         directory: ./backend
-        fail_ci_if_failure: false
+        fail_ci_if_error: false
     
     - name: Test Results Summary
       if: always()
       run: |
-        echo "## Test Summary" >> $GITCHUB_OUTPUT
+        echo "## 🧪 Test Summary" >> $GITHUB_OUTPUT
         echo "- ✅ Basic tests completed"
         echo "- ✅ API endpoints tested" 
         echo "- ✅ Coverage report generated"
