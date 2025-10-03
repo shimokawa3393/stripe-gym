@@ -80,12 +80,12 @@ cp env.production.example .env.production
 
 3. Dockerでの起動
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 4. データベースマイグレーション
 ```bash
-docker-compose exec app alembic upgrade head
+docker compose exec app alembic upgrade head
 ```
 
 5. 動作確認
@@ -242,12 +242,12 @@ CREATE TABLE processed_events (
 ./backend/tests/run_tests.sh
 
 # 個別テストカテゴリ
-docker-compose exec app python -m pytest tests/test_integration.py -v
-docker-compose exec app python -m pytest tests/test_webhook.py -v
-docker-compose exec app python -m pytest tests/test_performance.py -v
+docker compose exec app python -m pytest tests/test_integration.py -v
+docker compose exec app python -m pytest tests/test_webhook.py -v
+docker compose exec app python -m pytest tests/test_performance.py -v
 
 # カバレッジ付きテスト
-docker-compose exec app python -m pytest tests/ --cov=app --cov-report=html
+docker compose exec app python -m pytest tests/ --cov=app --cov-report=html
 ```
 
 ### テスト種類
@@ -339,7 +339,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your/webhook
 
 ```bash
 # Docker Compose によるデプロイ
-docker-compose -f docker-compose.production.yml up -d
+docker compose -f docker compose.production.yml up -d
 
 # SSL証明書設定（Let's Encrypt推奨）
 certbot --nginx -d your-domain.com
@@ -370,16 +370,16 @@ curl -X POST http://localhost:5000/webhook
 #### データベース接続エラー
 ```bash
 # 確認手順
-docker-compose ps db
-docker-compose logs db
-docker-compose exec app python -c "from repositories import init_db; init_db()"
+docker compose ps db
+docker compose logs db
+docker compose exec app python -c "from repositories import init_db; init_db()"
 ```
 
 #### テスト実行エラー
 ```bash
 # 解決手順
-docker-compose exec app pip install -r requirements.txt
-docker-compose build --no-cache app
+docker compose exec app pip install -r requirements.txt
+docker compose build --no-cache app
 ./backend/tests/scripts/start-stripe-mock.sh
 ```
 
@@ -387,10 +387,10 @@ docker-compose build --no-cache app
 
 ```bash
 # アプリケーションログ
-docker-compose logs -f app
+docker compose logs -f app
 
 # データベースログ
-docker-compose logs -f db
+docker compose logs -f db
 
 # システム状態確認
 curl http://localhost:8080/health/internal

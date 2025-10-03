@@ -65,7 +65,7 @@ docker run -d \
 
 #### A. Docker Compose（簡単デプロイ）
 ```bash
-# docker-compose.production.yml
+# docker compose.production.yml
 version: '3.8'
 services:
   app:
@@ -110,7 +110,7 @@ volumes:
 #### B. デプロイ実行
 ```bash
 # テスト環境での確認
-docker-compose -f docker-compose.production.yml up -d
+docker compose -f docker compose.production.yml up -d
 
 # ヘルスチェック
 curl -f http://localhost:5000/health
@@ -289,13 +289,13 @@ docker stats stripe-gym-app
 ### 2. 緊急手順
 ```bash
 # サービス停止
-docker-compose -f docker-compose.production.yml down
+docker compose -f docker compose.production.yml down
 
 # ログバック
 git checkout previous-version
 
 # 復旧
-docker-compose -f docker-compose.production.yml up -d
+docker compose -f docker compose.production.yml up -d
 ```
 
 ## 📞 サポート

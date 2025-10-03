@@ -83,7 +83,7 @@ stripe-gym/
 ├── 📁 .github/workflows/         # CI/CD設定
 │   ├── test.yml                  # テスト自動化
 │   └── deploy.yml                # デプロイ自動化
-├── 📄 docker-compose.yml         # Docker環境
+├── 📄 docker compose.yml         # Docker環境
 ├── 📄 env.production.example     # 本番環境設定テンプレート
 └── 📄 DEPLOYMENT.md              # デプロイメントガイド
 ```
@@ -401,7 +401,7 @@ README整備と次ステップ準備
    
    ## 起動方法
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
    ```
 
@@ -770,10 +770,10 @@ cp env.production.example .env
 # .envファイルを編集してAPIキーを設定
 
 # 3. Docker起動
-docker-compose up -d
+docker compose up -d
 
 # 4. マイグレーション実行
-docker-compose exec app alembic upgrade head
+docker compose exec app alembic upgrade head
 
 # 5. アクセス確認
 curl http://localhost:8080/health
@@ -786,10 +786,10 @@ curl http://localhost:8080/health
 ./backend/tests/run_tests.sh
 
 # 個別テスト実行
-docker-compose exec app python -m pytest tests/test_integration.py -v
+docker compose exec app python -m pytest tests/test_integration.py -v
 
 # カバレッジ付きテスト
-docker-compose exec app python -m pytest tests/ --cov=app --cov-report=html
+docker compose exec app python -m pytest tests/ --cov=app --cov-report=html
 ```
 
 ### 本番デプロイ
@@ -804,7 +804,7 @@ cp env.production.example .env.production
 # - SLACK_WEBHOOK_URL (通知用)
 
 # 3. 本番起動
-docker-compose -f docker-compose.production.yml up -d
+docker compose -f docker compose.production.yml up -d
 
 # 4. SSL証明書設定（Let's Encrypt推奨）
 certbot --nginx -d your-domain.com
@@ -850,7 +850,7 @@ stripe listen --forward-to localhost:5000/webhook
 # → 署名シークレットをコピー → .envファイルに設定
 
 # 3. データベース接続確認
-docker-compose exec app python -c "from repositories import init_db; init_db()"
+docker compose exec app python -c "from repositories import init_db; init_db()"
 ```
 
 #### 2. データベース接続エラー
@@ -863,13 +863,13 @@ docker-compose exec app python -c "from repositories import init_db; init_db()"
 **解決策**:
 ```bash
 # 1. データベースコンテナ確認
-docker-compose ps db
+docker compose ps db
 
 # 2. 接続文字列確認
-docker-compose exec app env | grep DATABASE_URL
+docker compose exec app env | grep DATABASE_URL
 
 # 3. PostgreSQL再起動
-docker-compose restart db
+docker compose restart db
 ```
 
 #### 3. テスト実行エラー
@@ -882,10 +882,10 @@ docker-compose restart db
 **解決策**:
 ```bash
 # 1. 依存関係再インストール
-docker-compose exec app pip install -r requirements.txt
+docker compose exec app pip install -r requirements.txt
 
 # 2. Dockerイメージ再ビルド
-docker-compose build --no-cache app
+docker compose build --no-cache app
 
 # 3. stripe-mock起動確認
 ./backend/tests/scripts/start-stripe-mock.sh
@@ -904,18 +904,18 @@ docker-compose build --no-cache app
 # エラーは出るが機能は動作する（warning レベル）
 
 # Redisを使いたい場合は
-docker-compose exec app pip install redis
-docker-compose exec app redis-cli ping
+docker compose exec app pip install redis
+docker compose exec app redis-cli ping
 ```
 
 ### ログ確認方法
 
 ```bash
 # アプリケーションログ
-docker-compose logs app
+docker compose logs app
 
 # データベースログ
-docker-compose logs db
+docker compose logs db
 
 # Webhookテスト
 stripe trigger checkout.session.completed
