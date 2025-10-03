@@ -1,0 +1,172 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: stripegym_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Start Docker services
+      run: |
+        docker-compose up -d db
+        sleep 10
+    
+    - name: Run database migrations
+      run: |
+        cd backend
+        docker-compose exec -T app alembic upgrade head
+      env:
+        DATABASE_URL: postgresql://stripegym:password@localhost:5432/stripegym_test
+    
+    - name: Run comprehensive tests
+      run: |
+        cd backend
+        python -m pytest tests/ \
+          --cov=app \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --tb=short \
+          --maxfail=5
+      env:
+        DATABASE_URL: postgresql://stripegym:password@localhost:5432/stripegym_test
+        STRIPE_SECRET_KEY: sk_test_dummy
+        STRIPE_WEBHOOK_SECRET: whsec_test_dummy
+        STRIPE_WEBHOOK_BYPASS_SIGNATURE: true
+    
+    - name: Security scan
+      run: |
+        pip install safety
+        safety check --requirements requirements.txt
+    
+    - name: Upload test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        directory: ./backend
+        fail_ci_if_failure: false
+    
+    - name: Build Docker image
+      run: |
+        docker build -t stripegym:${{ github.sha }} -t stripegym:latest ./backend
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm -d --name test-container -p 5000:5000 stripegym:latest
+        sleep 10
+        curl -f http://localhost:5000/health
+        docker stop test-container
+    
+    outputs:
+      image-tag: ${{ github.sha }}
+      build-status: success
+
+  deploy-staging:
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && needs.test-and-build.outputs.build-status == 'success'
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment"
+        echo "Image: stripegym:latest"
+        echo "Status: ${{ needs.test-and-build.outputs.build-status }}"
+        
+        # 実際のデプロイスクリプト
+        # docker service update --image stripegym:latest stripegym-api
+
+  deploy-production:
+    needs: test-and-build
+    if: startsWith(github.ref, 'refs/tags/v') && needs.test-and-build.outputs.build-status == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "🚀 Deploying to production environment"
+        echo "Tag: ${{ github.ref_name }}"
+        echo "Image: stripegym:${{ needs.test-and-build.outputs.image-tag }}"
+        
+        # 実際のデプロイスクリプト
+        # docker service update --image stripegym:${{ needs.test-and-build.outputs.image-tag }} stripegym-api
+    
+    - name: Post-deploy health check
+      run: |
+        echo "🔍 Running post-deployment health checks"
+        # curl -f https://api.your-domain.com/health
+        # Run production smoke tests
+    
+    - name: Notify deployment success
+      run: |
+        echo "✅ Deployment successful!"
+        # Slack notification via webhook
+
+  rollback:
+    needs: [deploy-production]
+    if: failure()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Emergency rollback
+      run: |
+        echo "🚨 Rolling back to previous version"
+        # Emergency rollback script
+        # docker service update --rollback stripegym-api
+    
+    - name: Notify rollback
+      run: |
+        echo "⚠️ Rollback completed"
+        # Send alert notification

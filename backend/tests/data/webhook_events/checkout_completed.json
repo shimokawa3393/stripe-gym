@@ -1,0 +1,34 @@
+{
+  "id": "evt_test_checkout_completed",
+  "object": "event",
+  "api_version": "2020-08-27",
+  "created": 1640995200,
+  "data": {
+    "object": {
+      "id": "cs_test_checkout_session_123",
+      "object": "checkout.session",
+      "amount_total": 5000,
+      "currency": "jpy",
+      "customer": "cus_test123456789",
+      "customer_email": "test@example.com",
+      "mode": "payment",
+      "payment_status": "paid",
+      "status": "complete",
+      "success_url": "https://example.com/success?session_id={CHECKOUT_SESSION_ID}",
+      "cancel_url": "https://example.com/cancel",
+      "metadata": {
+        "user_id": "1",
+        "product_name": "プロテイン1袋"
+      },
+      "payment_intent": "pi_test_payment_intent_123",
+      "created": 1640995200
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_request_123",
+    "idempotency_key": null
+  },
+  "type": "checkout.session.completed"
+}

@@ -1,0 +1,50 @@
+{
+  "id": "evt_test_invoice_paid",
+  "object": "event",
+  "api_version": "2020-08-27",
+  "created": 1640995200,
+  "data": {
+    "object": {
+      "id": "in_test_invoice_123",
+      "object": "invoice",
+      "amount_due": 5000,
+      "amount_paid": 5000,
+      "amount_remaining": 0,
+      "currency": "jpy",
+      "customer": "cus_test123456789",
+      "customer_email": "test@example.com",
+      "status": "paid",
+      "subscription": "sub_test123456789",
+      "lines": {
+        "data": [{
+          "id": "il_test_invoice_line_item_123",
+          "object": "line_item",
+          "amount": 5000,
+          "currency": "jpy",
+          "description": "スタンダードプラン (1月分)",
+          "price": {
+            "id": "price_test123",
+            "object": "price",
+            "amount": 5000,
+            "currency": "jpy",
+            "nickname": "スタンダードプラン"
+          },
+          "quantity": 1
+        }]
+      },
+      "created": 1640995200,
+      "period_start": 1640995200,
+      "period_end": 1643673600,
+      "due_date": 1640995200,
+      "paid": true,
+      "payment_intent": "pi_test_payment_intent_123"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_request_123",
+    "idempotency_key": null
+  },
+  "type": "invoice.paid"
+}

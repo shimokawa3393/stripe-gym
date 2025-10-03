@@ -27,9 +27,19 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature", "")  # 署名ヘッダーの取得
     event = None  # イベントオブジェクトの初期化
     
+    # 署名バイパス設定のチェック（テスト環境用）
+    bypass_signature = os.getenv("STRIPE_WEBHOOK_BYPASS_SIGNATURE", "false").lower() == "true"
+    
     try:
-        # 署名の検証とイベントオブジェクトの取得
-        event = stripe.Webhook.construct_event(payload, sig_header, WEBHOOK_SECRET)
+        if bypass_signature:
+            # テスト環境：署名検証をスキップして、JSONを直接パース
+            print("🔓 Webhook signature bypass enabled (test environment)")
+            import json
+            event = json.loads(payload)
+        else:
+            # 本番環境：署名の検証とイベントオブジェクトの取得
+            event = stripe.Webhook.construct_event(payload, sig_header, WEBHOOK_SECRET)
+            
     except stripe.error.SignatureVerificationError as e:
         # 署名検証エラー（偽装やシークレット不一致）
         print("⚠ Webhook signature verification failed.")

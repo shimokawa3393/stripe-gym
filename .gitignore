@@ -17,6 +17,13 @@
 .DS_Store
 __pycache__/
 
+# Test related files
+.coverage
+htmlcov/
+.pytest_cache/
+*.pyc
+*.pyo
+*.log
 
 .venv/
 

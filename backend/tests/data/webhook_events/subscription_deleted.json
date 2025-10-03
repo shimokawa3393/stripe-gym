@@ -1,0 +1,50 @@
+{
+  "id": "evt_test_subscription_deleted",
+  "object": "event",
+  "api_version": "2020-08-27",
+  "created": 1640995200,
+  "data": {
+    "object": {
+      "id": "sub_test123456789",
+      "object": "subscription",
+      "status": "canceled",
+      "customer": "cus_test123456789",
+      "items": {
+        "data": [{
+          "id": "si_test_subscription_item_123",
+          "object": "subscription_item",
+          "price": {
+            "id": "price_test123",
+            "object": "price",
+            "amount": 5000,
+            "currency": "jpy",
+            "nickname": "スタンダードプラン",
+            "type": "recurring",
+            "recurring": {
+              "interval": "month",
+              "interval_count": 1
+            }
+          },
+          "quantity": 1
+        }]
+      },
+      "current_period_start": 1640995200,
+      "current_period_end": 1643673600,
+      "cancel_at_period_end": false,
+      "canceled_at": 1640995300,
+      "created": 1640995200,
+      "start_date": 1640995200,
+      "metadata": {
+        "user_id": "1",
+        "plan_type": "standard"
+      }
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_request_789",
+    "idempotency_key": null
+  },
+  "type": "customer.subscription.deleted"
+}

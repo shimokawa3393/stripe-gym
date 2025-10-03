@@ -6,6 +6,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# テスト用依存関係をインストール
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
 # アプリケーションコードをコピー
 COPY . .
 
