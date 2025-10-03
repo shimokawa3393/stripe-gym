@@ -430,25 +430,6 @@ MIT License
 4. BranchをPush (`git push origin feature/amazing-feature`)
 5. Pull Requestを作成
 
-## 更新履歴
-
-### v1.0.0 (2024-10-03)
-- Stripe Checkout決済の実装
-- Webhook処理とデータベース統合
-- ユーザー認証システム
-- テストスイートの実装
-
-### v2.0.0 (2024-10-03)
-- Stripe Subscription対応
-- Customer Portal統合
-- セキュリティ強化
-- CI/CD自動化
-
-### v3.0.0 (2024-10-03)
-- 監視・ログ・通知システム
-- パフォーマンス最適化
-- 本番運用準備完了
-
 ---
 
 このプロジェクトは学習目的で作成されましたが、本番運用可能なレベルまで開発されています。商用利用・教育利用ともに自由に行うことができます。
